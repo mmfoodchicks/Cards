@@ -41,6 +41,8 @@ export interface BaselineOptions {
   halfLifeDays: number;
   /** Modified-z cutoff for outlier rejection. */
   outlierK: number;
+  /** Most observations any single seller may contribute to one product. */
+  maxPerSeller: number;
 }
 
 export const DEFAULT_BASELINE_OPTIONS: BaselineOptions = {
@@ -58,6 +60,9 @@ export const DEFAULT_BASELINE_OPTIONS: BaselineOptions = {
   windowDays: 45,
   halfLifeDays: 14,
   outlierK: 3.0,
+  // A shop listing twenty copies of the same box is one opinion about price,
+  // not twenty, and without a cap it would define the market on its own.
+  maxPerSeller: 3,
 };
 
 export interface BaselineInput {
@@ -113,6 +118,9 @@ export function computeBaseline(input: BaselineInput): Baseline | null {
   }
   if (pool.length < minN) return null;
 
+  pool = capPerSeller(pool, opts.maxPerSeller);
+  if (pool.length < minN) return null;
+
   const { kept } = rejectOutliers(pool, (o) => o.unitCents, opts.outlierK);
   if (kept.length < minN) return null;
 
@@ -121,7 +129,18 @@ export function computeBaseline(input: BaselineInput): Baseline | null {
     weight: timeDecayWeight((nowMs - Date.parse(o.observedAt)) / 86_400_000, opts.halfLifeDays),
   }));
 
-  const valueCents = Math.round(weightedQuantile(weighted, quantileToUse));
+  // A quantile only means something if observations actually sit below it. At
+  // n = 6 the 25th percentile has one point under it, which makes it "the
+  // cheapest listing" — precisely the slot a scam or a mis-parse occupies.
+  // Raising the quantile at small n guarantees at least two supporting points,
+  // and the 0.45 ceiling stops a thin pool from degenerating into a median of
+  // asking prices, which is biased high and manufactures deals.
+  const effectiveQuantile =
+    kind === 'ask-derived'
+      ? Math.min(0.45, Math.max(quantileToUse, 2 / kept.length))
+      : quantileToUse;
+
+  const valueCents = Math.round(weightedQuantile(weighted, effectiveQuantile));
   if (!Number.isFinite(valueCents) || valueCents <= 0) return null;
 
   const values = kept.map((o) => o.unitCents);
@@ -141,6 +160,32 @@ export function computeBaseline(input: BaselineInput): Baseline | null {
     }),
     computedAt: now.toISOString(),
   };
+}
+
+/**
+ * Keep at most `max` observations per seller, newest first.
+ *
+ * Observations with no seller recorded are kept in full: they came from a
+ * source that does not report one, and dropping them would silently shrink
+ * the sample instead of de-biasing it.
+ */
+function capPerSeller(observations: readonly PriceObservation[], max: number): PriceObservation[] {
+  const perSeller = new Map<string, number>();
+  const kept: PriceObservation[] = [];
+  const sorted = [...observations].sort((a, b) => Date.parse(b.observedAt) - Date.parse(a.observedAt));
+
+  for (const obs of sorted) {
+    const seller = obs.sellerId;
+    if (!seller) {
+      kept.push(obs);
+      continue;
+    }
+    const used = perSeller.get(seller) ?? 0;
+    if (used >= max) continue;
+    perSeller.set(seller, used + 1);
+    kept.push(obs);
+  }
+  return kept;
 }
 
 /** Weight each benchmark kind by how much it deserves to be believed. */

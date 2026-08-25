@@ -716,11 +716,11 @@
       "setName": "Topps Chrome Basketball",
       "productType": "hobby-box",
       "variant": null,
-      "msrpCents": 52999,
+      "msrpCents": 54999,
       "packsPerUnit": 20,
       "cardsPerPack": 4,
       "confidence": "high",
-      "source": "https://launches.topps.com/en-US/launch/2025-26-topps-chromer-updates-basketball-hobby-box-pre-order",
+      "source": "https://www.checklistinsider.com/2025-26-topps-chrome-update-series-basketball",
       "aliases": [
         "topps chrome updates basketball hobby box",
         "chrome updates nba hobby",
@@ -1366,7 +1366,7 @@
       "msrpCents": 2694,
       "packsPerUnit": 6,
       "cardsPerPack": null,
-      "confidence": "medium",
+      "confidence": "low",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "mega evolution booster bundle",
@@ -1403,6 +1403,28 @@
       "category": "pokemon",
       "brand": "Pokemon TCG",
       "year": 2025,
+      "setSlug": "phantasmal-flames",
+      "setName": "Phantasmal Flames",
+      "productType": "booster-box",
+      "variant": null,
+      "msrpCents": 16164,
+      "packsPerUnit": 36,
+      "cardsPerPack": null,
+      "confidence": "medium",
+      "source": "https://www.bestbuy.com/product/pokemon-trading-card-game-mega-evolution-phantasmal-flames-booster-box-36-packs/JJG2TL3XYR",
+      "aliases": [
+        "phantasmal flames booster box",
+        "phantasmal flames bb",
+        "pf booster box",
+        "mega evolution phantasmal flames"
+      ],
+      "id": "pokemon__2025__phantasmal-flames__booster-box__std",
+      "ambiguous": false
+    },
+    {
+      "category": "pokemon",
+      "brand": "Pokemon TCG",
+      "year": 2025,
       "setSlug": "prismatic-evolutions",
       "setName": "Prismatic Evolutions",
       "productType": "collection-box",
@@ -1410,7 +1432,7 @@
       "msrpCents": 8999,
       "packsPerUnit": 15,
       "cardsPerPack": null,
-      "confidence": "medium",
+      "confidence": "low",
       "source": "https://www.bestbuy.com/product/pokemon-trading-card-game-scarlet-violet-prismatic-evolutions-super-premium-collection/JJG2TL23CW/sku/6621081",
       "aliases": [
         "prismatic evolutions super premium collection",
@@ -1455,7 +1477,7 @@
       "msrpCents": 2694,
       "packsPerUnit": 6,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "30th celebration booster bundle",
@@ -1498,7 +1520,7 @@
       "msrpCents": 3999,
       "packsPerUnit": 8,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "ditto premium collection",
@@ -1519,7 +1541,7 @@
       "msrpCents": 2999,
       "packsPerUnit": 5,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "figure collection",
@@ -1540,7 +1562,7 @@
       "msrpCents": 2199,
       "packsPerUnit": 4,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "ex box",
@@ -1561,7 +1583,7 @@
       "msrpCents": 3199,
       "packsPerUnit": 5,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "binder collection",
@@ -1582,7 +1604,7 @@
       "msrpCents": 1499,
       "packsPerUnit": 3,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "poster collection",
@@ -1603,7 +1625,7 @@
       "msrpCents": 999,
       "packsPerUnit": 2,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "knock out collection",
@@ -1624,7 +1646,7 @@
       "msrpCents": 5999,
       "packsPerUnit": 11,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "30th celebration pokemon center etb",
@@ -1646,7 +1668,7 @@
       "msrpCents": 4999,
       "packsPerUnit": 9,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "30th celebration etb",
@@ -1667,7 +1689,7 @@
       "msrpCents": 999,
       "packsPerUnit": 2,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "mini tin",
@@ -1688,7 +1710,7 @@
       "msrpCents": 2199,
       "packsPerUnit": 4,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://billsarchive.com/articles/30th-anniversary-english-products-msrp.html",
       "aliases": [
         "sylveon ex tin",
@@ -1709,7 +1731,7 @@
       "msrpCents": 16164,
       "packsPerUnit": 36,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://colorfulcardboard.com/posts/perfect-order-booster-box-worth-it/",
       "aliases": [
         "perfect order booster box",
@@ -1731,7 +1753,7 @@
       "msrpCents": 4999,
       "packsPerUnit": 9,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://colorfulcardboard.com/posts/perfect-order-booster-box-worth-it/",
       "aliases": [
         "perfect order etb",
@@ -1752,7 +1774,7 @@
       "msrpCents": 16164,
       "packsPerUnit": 36,
       "cardsPerPack": null,
-      "confidence": "high",
+      "confidence": "medium",
       "source": "https://www.beckett.com/news/is-a-pokemon-pitch-black-booster-box-worth-opening-heres-the-math/",
       "aliases": [
         "pitch black booster box",
@@ -1762,28 +1784,6 @@
         "me pitch black"
       ],
       "id": "pokemon__2026__me-pitch-black__booster-box__std",
-      "ambiguous": false
-    },
-    {
-      "category": "pokemon",
-      "brand": "Pokemon TCG",
-      "year": 2026,
-      "setSlug": "phantasmal-flames",
-      "setName": "Phantasmal Flames",
-      "productType": "booster-box",
-      "variant": null,
-      "msrpCents": 16164,
-      "packsPerUnit": 36,
-      "cardsPerPack": null,
-      "confidence": "medium",
-      "source": "https://www.bestbuy.com/product/pokemon-trading-card-game-mega-evolution-phantasmal-flames-booster-box-36-packs/JJG2TL3XYR",
-      "aliases": [
-        "phantasmal flames booster box",
-        "phantasmal flames bb",
-        "pf booster box",
-        "mega evolution phantasmal flames"
-      ],
-      "id": "pokemon__2026__phantasmal-flames__booster-box__std",
       "ambiguous": false
     },
     {
@@ -1886,7 +1886,7 @@
       "msrpCents": 14364,
       "packsPerUnit": 36,
       "cardsPerPack": null,
-      "confidence": "medium",
+      "confidence": "low",
       "source": "https://kotaku.com/gamestop-pokemon-tcg-prices-booster-box-etb-perfect-order-2000681798",
       "aliases": [
         "booster box",

@@ -231,13 +231,33 @@ function disambiguate(candidates: readonly CatalogEntry[], normalizedTitle: stri
   return tied.length === 1 ? best.entry : null;
 }
 
-/** Length of the longest alias of `entry` present in the title, or 0. */
+/**
+ * Length of the longest DISTINGUISHING alias of `entry` present in the title.
+ *
+ * Catalog aliases include bare restatements of the product type — "booster
+ * box", "hobby box", "blaster". Those describe every candidate equally, so
+ * letting one win disambiguation just picks whichever SKU happened to list it,
+ * which is how a listing gets priced against the wrong configuration.
+ */
 function longestAliasMatch(entry: CatalogEntry, normalizedTitle: string): number {
   let best = 0;
   for (const alias of entry.aliases) {
-    if (alias.length >= 4 && normalizedTitle.includes(alias) && alias.length > best) best = alias.length;
+    if (alias.length < 4) continue;
+    if (!normalizedTitle.includes(alias)) continue;
+    if (isProductTypeRestatement(alias, entry)) continue;
+    if (alias.length > best) best = alias.length;
   }
   return best;
+}
+
+/** True when an alias says nothing beyond the product type it belongs to. */
+function isProductTypeRestatement(alias: string, entry: CatalogEntry): boolean {
+  const typeWords = entry.productType.split('-').filter((w) => w.length >= 2);
+  const aliasWords = alias.split(/\s+/).filter((w) => w.length >= 2);
+  if (aliasWords.length === 0) return true;
+  // An alias made up entirely of the product type's own words carries no
+  // information about which SKU this is.
+  return aliasWords.every((word) => typeWords.some((t) => t.startsWith(word) || word.startsWith(t)));
 }
 
 /**

@@ -280,10 +280,28 @@ export function markGone(id: string, goneAt: string, db: Db = getDb()): void {
 // Price observations (append-only)
 // ---------------------------------------------------------------------------
 
+/**
+ * How many times one listing may ever contribute an asking price.
+ *
+ * A listing that sits unsold for months is weak evidence repeated, not strong
+ * evidence: the seller's price is one opinion no matter how long it stays up.
+ * Four observations spans the 45-day baseline window at weekly spacing with
+ * room for a re-price.
+ */
+export const MAX_OBSERVATIONS_PER_LISTING = 4;
+
 export function recordObservation(obs: PriceObservation, db: Db = getDb()): void {
+  if (obs.listingId) {
+    const seen = db
+      .prepare('SELECT COUNT(*) AS n FROM price_observations WHERE listing_id = ? AND kind = ?')
+      .get(obs.listingId, obs.kind) as { n: number };
+    if (seen.n >= MAX_OBSERVATIONS_PER_LISTING) return;
+  }
+
   db.prepare(`
-    INSERT OR IGNORE INTO price_observations (product_key, observed_at, unit_cents, kind, source, listing_id)
-    VALUES (@productKey, @observedAt, @unitCents, @kind, @source, @listingId)
+    INSERT OR IGNORE INTO price_observations
+      (product_key, observed_at, unit_cents, kind, source, listing_id, seller_id)
+    VALUES (@productKey, @observedAt, @unitCents, @kind, @source, @listingId, @sellerId)
   `).run({
     productKey: obs.productKey,
     observedAt: obs.observedAt,
@@ -291,13 +309,14 @@ export function recordObservation(obs: PriceObservation, db: Db = getDb()): void
     kind: obs.kind,
     source: obs.source,
     listingId: obs.listingId,
+    sellerId: obs.sellerId ?? null,
   });
 }
 
 export function observationsFor(productKey: string, sinceIso: string, db: Db = getDb()): PriceObservation[] {
   const rows = db
     .prepare(`
-      SELECT product_key, observed_at, unit_cents, kind, source, listing_id
+      SELECT product_key, observed_at, unit_cents, kind, source, listing_id, seller_id
       FROM price_observations
       WHERE product_key = @key AND observed_at >= @since
       ORDER BY observed_at DESC
@@ -306,6 +325,7 @@ export function observationsFor(productKey: string, sinceIso: string, db: Db = g
     .all({ key: productKey, since: sinceIso }) as Array<{
       product_key: string; observed_at: string; unit_cents: number;
       kind: PriceObservation['kind']; source: string; listing_id: string | null;
+      seller_id: string | null;
     }>;
 
   return rows.map((r) => ({
@@ -315,6 +335,7 @@ export function observationsFor(productKey: string, sinceIso: string, db: Db = g
     kind: r.kind,
     source: r.source,
     listingId: r.listing_id,
+    sellerId: r.seller_id,
   }));
 }
 

@@ -27,6 +27,8 @@ import {
   VARIANT_GROUPS,
   VARIANT_TERMS,
   GRADE_QUALIFIERS,
+  LANGUAGE_TERMS,
+  SEALED_VARIANT_TERMS,
   type SetVocabEntry,
 } from './vocab.js';
 
@@ -87,10 +89,13 @@ function matchTerms(haystack: string, terms: readonly string[]): string[] {
 
 function detectCategory(text: string): { category: Category; hits: number } {
   let best: { category: Category; hits: number } = { category: 'other', hits: 0 };
-  for (const { category, terms, subjects } of CATEGORY_TERMS) {
-    // A player or character name is worth more than a generic hobby word:
+  for (const { category, strong, terms, subjects } of CATEGORY_TERMS) {
+    // Naming the sport outright settles it. A player name is next-best:
     // "Ohtani" pins a listing to baseball more reliably than "chrome" does.
-    const hits = matchTerms(text, terms).length + matchTerms(text, subjects).length * 2;
+    const hits =
+      matchTerms(text, strong).length * 4 +
+      matchTerms(text, subjects).length * 2 +
+      matchTerms(text, terms).length;
     if (hits > best.hits) best = { category, hits };
   }
   return best;
@@ -366,6 +371,13 @@ export function parseTitle(rawTitle: string, opts: ParseOptions = {}): ParsedLis
   const { variants, matchedAliases: variantAliases } = detectVariants(text, category);
   const condition = detectCondition(text);
 
+  // English is the default because the overwhelming majority of listings on a
+  // US marketplace are English and say nothing about it.
+  const language = LANGUAGE_TERMS.find((l) => l.aliases.some((a) => text.includes(a)))?.code ?? 'en';
+  const sealedVariant = sealed
+    ? (SEALED_VARIANT_TERMS.find((v) => v.aliases.some((a) => text.includes(a)))?.canonical ?? null)
+    : null;
+
   const cardMatch = CARD_NUMBER_RE.exec(text);
   const cardNumber = cardMatch ? (cardMatch[1] ?? (cardMatch[2] && cardMatch[3] ? `${cardMatch[2]}/${cardMatch[3]}` : null)) : null;
 
@@ -384,7 +396,7 @@ export function parseTitle(rawTitle: string, opts: ParseOptions = {}): ParsedLis
     ...PRODUCT_TYPE_ALIASES.flatMap((p) => p.aliases).filter((a) => text.includes(a)),
     // Generic hobby words only. Player and character names live in `subjects`
     // and are deliberately left in place: they are what we are looking for.
-    ...CATEGORY_TERMS.flatMap((c) => c.terms).filter((t) => text.includes(t)),
+    ...CATEGORY_TERMS.flatMap((c) => [...c.strong, ...c.terms]).filter((t) => text.includes(t)),
   ];
   const { subject, slug: subjectSlug } = sealed
     ? { subject: null, slug: null }
@@ -401,6 +413,9 @@ export function parseTitle(rawTitle: string, opts: ParseOptions = {}): ParsedLis
     grader: grading.grader,
     grade: grading.grade,
     variants,
+    language,
+    sealedVariant,
+    condition,
   });
 
   const parseConfidence = scoreParse({
@@ -432,6 +447,8 @@ export function parseTitle(rawTitle: string, opts: ParseOptions = {}): ParsedLis
     mixedLot,
     variants,
     condition: condition ?? opts.conditionHint ?? null,
+    language,
+    sealedVariant,
     redFlags,
     productKey,
     parseConfidence,
@@ -449,6 +466,12 @@ export interface ProductKeyParts {
   grader: Grader | null;
   grade: number | null;
   variants: string[];
+  /** ISO-ish language code; a Japanese print is a different product. */
+  language: string;
+  /** Sealed configuration: jumbo, collector, choice... */
+  sealedVariant: string | null;
+  /** Raw-card condition, which tiers a single's value. */
+  condition: string | null;
 }
 
 /**
@@ -468,7 +491,17 @@ export function buildProductKey(parts: ProductKeyParts): string | null {
     // Sealed product without a known set cannot be priced: a booster box of
     // *what*?
     if (!parts.setSlug || parts.productType === 'unknown') return null;
-    return ['sealed', parts.category, year, parts.setSlug, parts.productType].join('|');
+    return [
+      'sealed',
+      parts.category,
+      year,
+      parts.setSlug,
+      parts.productType,
+      // Configuration and language both move the price by multiples, so both
+      // have to separate the pools.
+      parts.sealedVariant ?? 'std',
+      parts.language,
+    ].join('|');
   }
 
   if (!parts.subjectSlug && !parts.cardNumber) return null;
@@ -479,6 +512,10 @@ export function buildProductKey(parts: ProductKeyParts): string | null {
     ? parts.variants.map((v) => slugify(v)).sort().join('+')
     : 'base';
 
+  // For a raw card the stated condition is a value tier of its own: a played
+  // vintage card at 40% of near-mint money is not a discount.
+  const conditionKey = parts.grader ? 'slab' : conditionTier(parts.condition);
+
   return [
     'single',
     parts.category,
@@ -488,7 +525,26 @@ export function buildProductKey(parts: ProductKeyParts): string | null {
     parts.cardNumber ? parts.cardNumber.replace(/\s+/g, '') : 'x',
     gradeKey,
     variantKey,
+    conditionKey,
+    parts.language,
   ].join('|');
+}
+
+/** Collapse condition abbreviations into the tiers that actually price apart. */
+function conditionTier(condition: string | null): string {
+  switch (condition) {
+    case 'NM':
+    case null:
+      return 'nm';
+    case 'LP':
+      return 'lp';
+    case 'MP':
+    case 'HP':
+    case 'DMG':
+      return 'played';
+    default:
+      return 'nm';
+  }
 }
 
 function scoreParse(f: {

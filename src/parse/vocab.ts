@@ -17,14 +17,18 @@ import { fromRoot } from '../util/paths.js';
 /**
  * Words that identify what hobby a listing belongs to.
  *
+ * `strong` terms name the hobby outright and settle the question on their own:
+ * a title containing "basketball" is a basketball listing even though "Topps
+ * Chrome" also appears and Topps Chrome is mostly a baseball line.
  * `terms` are generic hobby words, safe to strip from a title once matched.
  * `subjects` are player and character names: they are strong category signals
  * but they ARE the thing we want to extract as the card's subject, so the
  * parser must never consume them.
  */
-export const CATEGORY_TERMS: Array<{ category: Category; terms: string[]; subjects: string[] }> = [
+export const CATEGORY_TERMS: Array<{ category: Category; strong: string[]; terms: string[]; subjects: string[] }> = [
   {
     category: 'pokemon',
+    strong: ['pokemon', 'pokemon tcg', 'ptcg'],
     terms: [
       'pokemon', 'pokemon tcg', 'ptcg', 'elite trainer box', ' etb ',
       'scarlet & violet', 'scarlet and violet', 'sword & shield', 'sun & moon',
@@ -34,6 +38,7 @@ export const CATEGORY_TERMS: Array<{ category: Category; terms: string[]; subjec
   },
   {
     category: 'magic',
+    strong: ['magic the gathering', 'magic: the gathering', ' mtg '],
     terms: [
       'magic the gathering', 'magic: the gathering', ' mtg ', 'commander deck',
       'play booster', 'set booster', 'collector booster', 'wizards of the coast',
@@ -42,11 +47,13 @@ export const CATEGORY_TERMS: Array<{ category: Category; terms: string[]; subjec
   },
   {
     category: 'yugioh',
+    strong: ['yugioh', 'yu-gi-oh', 'yu gi oh', ' ygo '],
     terms: ['yugioh', 'yu-gi-oh', 'yu gi oh', ' ygo ', 'konami'],
     subjects: ['blue-eyes white dragon', 'dark magician', 'exodia'],
   },
   {
     category: 'onepiece',
+    strong: ['one piece card', 'one piece tcg'],
     terms: [
       'one piece card', 'one piece tcg', 'op-01', 'op-02', 'op-03', 'op-04', 'op-05',
       'op-06', 'op-07', 'op-08', 'op-09', 'op-10', 'op-11', 'romance dawn', 'bandai one piece',
@@ -55,10 +62,14 @@ export const CATEGORY_TERMS: Array<{ category: Category; terms: string[]; subjec
   },
   {
     category: 'baseball',
+    strong: ['baseball', ' mlb '],
     terms: [
-      'baseball', ' mlb ', 'bowman', 'bowman chrome', 'topps chrome', 'topps series 1',
-      'topps series 2', 'topps heritage', 'topps update', 'stadium club', 'allen & ginter',
-      'allen and ginter', 'gypsy queen',
+      // Baseball-only lines. "Topps Chrome" and "Stadium Club" are deliberately
+      // absent: both ship for football, basketball and soccer too, so treating
+      // them as baseball evidence mislabels every other sport's listings.
+      'bowman', 'bowman chrome', 'bowman draft', 'topps series 1', 'topps series 2',
+      'topps heritage', 'topps update', 'allen & ginter', 'allen and ginter',
+      'gypsy queen', 'topps big league',
     ],
     subjects: [
       'ohtani', 'shohei ohtani', 'paul skenes', 'jackson holliday', 'mike trout',
@@ -68,6 +79,7 @@ export const CATEGORY_TERMS: Array<{ category: Category; terms: string[]; subjec
   },
   {
     category: 'football',
+    strong: ['football', ' nfl '],
     terms: [
       'football', ' nfl ', 'panini prizm football', 'donruss football', 'optic football',
       'score football', 'mosaic football', 'contenders football', 'quarterback',
@@ -81,6 +93,7 @@ export const CATEGORY_TERMS: Array<{ category: Category; terms: string[]; subjec
   },
   {
     category: 'basketball',
+    strong: ['basketball', ' nba '],
     terms: [
       'basketball', ' nba ', 'panini prizm basketball', 'hoops basketball',
       'select basketball', 'donruss basketball',
@@ -92,11 +105,13 @@ export const CATEGORY_TERMS: Array<{ category: Category; terms: string[]; subjec
   },
   {
     category: 'hockey',
+    strong: ['hockey', ' nhl '],
     terms: ['hockey', ' nhl ', 'upper deck young guns', 'young guns'],
     subjects: ['connor bedard', 'mcdavid', 'connor mcdavid', 'auston matthews', 'wayne gretzky'],
   },
   {
     category: 'soccer',
+    strong: ['soccer', 'futbol', ' fifa '],
     terms: [
       'soccer', 'futbol', ' fifa ', ' uefa ', 'champions league',
       'panini prizm soccer', 'topps chrome ucl',
@@ -113,7 +128,7 @@ export const PRODUCT_TYPE_ALIASES: Array<{ type: ProductType; aliases: string[] 
   { type: 'case', aliases: ['sealed case', 'hobby case', 'factory case', '12 box case', '6 box case', 'master case'] },
   {
     type: 'ultra-premium-collection',
-    aliases: ['ultra premium collection', 'ultra-premium collection', 'upc box', ' upc ', 'super premium collection'],
+    aliases: ['ultra premium collection', 'ultra-premium collection', 'upc box', ' upc '],
   },
   {
     type: 'elite-trainer-box',
@@ -375,6 +390,37 @@ function loadSets(): SetVocabEntry[] {
     aliases: entry.aliases.map((a) => a.toLowerCase()),
   }));
 }
+
+/**
+ * Print language. A Japanese booster box and an English one are different
+ * products at very different prices, so pooling their asking prices would
+ * invent bargains in whichever direction the exchange rate happens to point.
+ */
+export const LANGUAGE_TERMS: Array<{ code: string; aliases: string[] }> = [
+  { code: 'jp', aliases: ['japanese', 'japan import', ' jpn ', ' jp ', 'nihongo'] },
+  { code: 'kr', aliases: ['korean', ' kor '] },
+  { code: 'zh', aliases: ['chinese', 'simplified chinese', 'traditional chinese'] },
+  { code: 'de', aliases: ['german', 'deutsch'] },
+  { code: 'fr', aliases: ['french', 'francais'] },
+  { code: 'es', aliases: ['spanish', 'espanol'] },
+  { code: 'it', aliases: ['italian', 'italiano'] },
+];
+
+/**
+ * Sealed configurations that share a coarse product type but not a price.
+ * These belong in the product key: without them a $239.99 Bowman hobby box and
+ * a $499.99 Bowman HTA jumbo pool into one meaningless average.
+ */
+export const SEALED_VARIANT_TERMS: Array<{ canonical: string; aliases: string[] }> = [
+  { canonical: 'jumbo', aliases: [' hta ', 'hta jumbo', ' jumbo '] },
+  { canonical: 'choice', aliases: [' choice '] },
+  { canonical: 'collector', aliases: ['collector booster'] },
+  { canonical: 'play', aliases: ['play booster'] },
+  { canonical: 'no-huddle', aliases: ['no huddle'] },
+  { canonical: 'pokemon-center', aliases: ['pokemon center'] },
+  { canonical: 'first-off-the-line', aliases: ['first off the line', ' fotl '] },
+  { canonical: 'commander', aliases: ['commander deck'] },
+];
 
 /** Words removed before fuzzy matching because every seller uses them. */
 export const NOISE_WORDS = new Set([

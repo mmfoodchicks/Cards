@@ -1,0 +1,17 @@
+{
+  "name": "CardHawk",
+  "short_name": "CardHawk",
+  "description": "Trading card deals under MSRP and under market value.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0f17",
+  "theme_color": "#0b0f17",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='36' fill='%230b0f17'/%3E%3Ctext x='96' y='134' font-size='104' text-anchor='middle'%3E%F0%9F%A6%85%3C/text%3E%3C/svg%3E",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

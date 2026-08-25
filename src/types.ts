@@ -98,6 +98,10 @@ export interface ParsedListing {
   variants: string[];
   /** Raw-card condition abbreviation (NM, LP, ...) when stated. */
   condition: string | null;
+  /** Print language. A Japanese box is a different product at a different price. */
+  language: string;
+  /** Sealed configuration that shares a product type but not a price. */
+  sealedVariant: string | null;
   /** Reasons the listing may be worthless or fraudulent. */
   redFlags: string[];
   /** Canonical key used to join against MSRP entries and price observations. */
@@ -176,6 +180,8 @@ export interface PriceObservation {
   kind: 'ask' | 'sold' | 'sold-inferred';
   source: string;
   listingId: string | null;
+  /** Used to stop one seller's inventory from dominating a baseline. */
+  sellerId?: string | null;
 }
 
 /** A computed fair-market estimate for one product key. */

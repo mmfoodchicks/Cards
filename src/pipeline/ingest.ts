@@ -241,6 +241,7 @@ export function persistListings(
           kind: 'ask',
           source: listing.source,
           listingId: listing.id,
+          sellerId: listing.sellerName,
         },
         db,
       );
@@ -278,13 +279,27 @@ export function shouldObserve(listing: ScoredListing): boolean {
   if (meta.excludedCategory === true) return false;
   if (meta.isGroupListing === true) return false;
 
-  // An auction nobody has bid on is not a price. One that has been bid up, or
-  // is about to close, is.
+  // Auctions are held to a much stricter standard here than they are for
+  // labelling. An eBay price path is back-loaded — almost all of the final
+  // price arrives in the last minutes under proxy bidding and sniping — so a
+  // mid-flight bid is a lower bound the seller chose, not a market price.
+  // A $0.99 opener admitted into the pool would drag the baseline for a
+  // popular product toward zero and mislabel every other listing of it.
   if (listing.listingType === 'auction' || listing.listingType === 'auction-with-bin') {
     const hoursLeft = listing.endsAt ? (Date.parse(listing.endsAt) - Date.now()) / 3_600_000 : Infinity;
     const bids = listing.bidCount ?? 0;
-    if (hoursLeft > 6 && bids < 5) return false;
+    if (hoursLeft > OBSERVABLE_AUCTION_HOURS || bids < OBSERVABLE_AUCTION_BIDS) return false;
   }
 
   return true;
 }
+
+/**
+ * How close to closing an auction must be before its price means anything.
+ *
+ * Deliberately far tighter than the six hours used for labelling: a listing can
+ * be worth showing a user long before its price is worth recording as evidence
+ * about the market.
+ */
+export const OBSERVABLE_AUCTION_HOURS = 1;
+export const OBSERVABLE_AUCTION_BIDS = 3;

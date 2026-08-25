@@ -9,7 +9,7 @@
  * backfilled — so every observed price is written down permanently from day one.
  */
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 export const MIGRATIONS: string[] = [
   /* v1 */ `
@@ -179,5 +179,21 @@ export const MIGRATIONS: string[] = [
     PRIMARY KEY (product_key, provider)
   );
   CREATE INDEX IF NOT EXISTS idx_provider_comps_fetched ON provider_comps (fetched_at);
+  `,
+
+  /* v3 */ `
+  -- Who listed it, so one seller with twenty identical listings cannot define
+  -- the market for a product.
+  ALTER TABLE price_observations ADD COLUMN seller_id TEXT;
+
+  -- Tighten sampling. The old index allowed one observation per listing per
+  -- DAY, so a listing that sat unsold for two months contributed sixty
+  -- "independent" data points and single-handedly set the baseline. Bucketing
+  -- by week cuts that by seven, and the ingest layer caps each listing's
+  -- lifetime contribution on top.
+  DROP INDEX IF EXISTS idx_obs_dedupe;
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_dedupe_week
+    ON price_observations (listing_id, kind, strftime('%Y-%W', observed_at))
+    WHERE listing_id IS NOT NULL;
   `,
 ];

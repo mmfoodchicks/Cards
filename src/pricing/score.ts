@@ -27,12 +27,20 @@ export interface LabelThresholds {
   fair: number;
 }
 
-/** Sealed product benchmarked against a real manufacturer price. */
+/**
+ * Sealed product benchmarked against a real manufacturer price.
+ *
+ * Tighter than the market ladder because MSRP is a fixed anchor with no
+ * sampling error: a 20% gap to MSRP is a genuine 20%, whereas a 20% gap to an
+ * estimated market value might be noise. The suspicious floor sits at 60%
+ * because sealed product at less than half MSRP is, in practice, an empty box,
+ * a pre-order scam, a counterfeit, or a title we misread.
+ */
 export const MSRP_THRESHOLDS: LabelThresholds = {
   suspicious: 0.6,
-  steal: 0.25,
-  greatDeal: 0.12,
-  goodDeal: 0.04,
+  steal: 0.35,
+  greatDeal: 0.2,
+  goodDeal: 0.08,
   fair: -0.05,
 };
 
