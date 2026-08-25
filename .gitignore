@@ -1,0 +1,14 @@
+node_modules/
+dist/
+web/dist/
+data/*.db
+data/*.db-shm
+data/*.db-wal
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+.vite/
+*.tsbuildinfo
+.scratch*
