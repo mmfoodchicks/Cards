@@ -145,3 +145,69 @@ describe('grading costs', () => {
     expect(sum(result.results.map((r) => r.basisCents))).toBe(20000);
   });
 });
+
+
+/**
+ * The safety property a price-comps feature rests on.
+ *
+ * An estimated market value is a WEIGHT in relative-FMV allocation, never an
+ * amount. If that ever stopped being true, pulling sold comps into the app
+ * would start inflating cost basis with market value — which is both wrong and
+ * exactly the mistake the feature is meant to prevent. These lock it down.
+ */
+describe('market value can never become cost', () => {
+  const items = [
+    { ref: 'hit', estimatedValueCents: 200000 },
+    { ref: 'mid', estimatedValueCents: 5000 },
+    { ref: 'common', estimatedValueCents: 1000 },
+  ];
+  const basisOf = (r: ReturnType<typeof allocateBasis>) => r.results.map((x) => x.basisCents);
+
+  it('allocates the same way whatever scale the values are on', () => {
+    const base = basisOf(allocateBasis({ totalCents: 16164, method: 'relative-fmv', items }));
+    expect(sum(base)).toBe(16164);
+
+    // The same relative values, expressed larger and smaller. A comps lookup
+    // that revises every estimate must not move basis at all.
+    for (const factor of [10, 0.1, 1000]) {
+      const scaled = basisOf(allocateBasis({
+        totalCents: 16164,
+        method: 'relative-fmv',
+        items: items.map((i) => ({ ...i, estimatedValueCents: Math.round(i.estimatedValueCents * factor) })),
+      }));
+      expect(scaled, `scaling values by ${factor} changed the allocation`).toEqual(base);
+    }
+  });
+
+  it('never allocates more than was actually paid, however valuable the cards', () => {
+    // A $161.64 box holding a card the market says is worth $2,600 still has
+    // $161.64 of cost in it. Nothing else.
+    const result = allocateBasis({
+      totalCents: 16164,
+      method: 'relative-fmv',
+      items: [
+        { ref: 'chase', estimatedValueCents: 260000 },
+        { ref: 'common', estimatedValueCents: 100 },
+      ],
+    });
+    expect(sum(basisOf(result))).toBe(16164);
+    expect(Math.max(...basisOf(result))).toBeLessThan(16164);
+  });
+
+  it('is unaffected by a value revised after the fact', () => {
+    // Buying at $50 and later learning the card books at $750 does not change
+    // what the card cost.
+    const before = allocateBasis({
+      totalCents: 5000,
+      method: 'relative-fmv',
+      items: [{ ref: 'card', estimatedValueCents: 5000 }],
+    });
+    const after = allocateBasis({
+      totalCents: 5000,
+      method: 'relative-fmv',
+      items: [{ ref: 'card', estimatedValueCents: 75000 }],
+    });
+    expect(basisOf(after)).toEqual(basisOf(before));
+    expect(basisOf(after)[0]).toBe(5000);
+  });
+});
