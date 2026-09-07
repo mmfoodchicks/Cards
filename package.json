@@ -1,9 +1,9 @@
 {
-  "name": "cardhawk",
+  "name": "cardledger",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Self-hosted trading-card deal finder. Watches marketplaces for cards and sealed product listed under MSRP or under market value.",
+  "description": "Bookkeeping and tax compliance for a trading card resale business in Davis County, Utah.",
   "engines": { "node": ">=20.11" },
   "scripts": {
     "dev": "concurrently -n api,web -c cyan,magenta \"npm:dev:api\" \"npm:dev:web\"",
@@ -14,8 +14,7 @@
     "build:web": "vite build --config web/vite.config.ts",
     "start": "node dist/index.js",
     "serve": "npm run build && npm start",
-    "seed": "tsx src/scripts/seedWatches.ts",
-    "scan": "tsx src/scripts/scan.ts",
+    "backup": "tsx src/scripts/backup.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p web/tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"

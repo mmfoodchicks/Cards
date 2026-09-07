@@ -15,19 +15,18 @@ let db: Db | null = null;
 
 export function getDb(): Db {
   if (db) return db;
-  mkdirSync(dirname(config.databasePath), { recursive: true });
+  if (config.databasePath !== ':memory:') {
+    mkdirSync(dirname(config.databasePath), { recursive: true });
+  }
   db = new Database(config.databasePath);
-
-  // WAL lets the scheduler write while the UI reads without blocking.
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
-
   migrate(db);
   return db;
 }
 
-/** Opens an isolated in-memory database. Used by tests. */
+/** An isolated in-memory database, for tests. */
 export function openMemoryDb(): Db {
   const memory = new Database(':memory:');
   memory.pragma('foreign_keys = ON');

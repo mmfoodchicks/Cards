@@ -1,15 +1,12 @@
 /**
  * Locating project files at runtime.
  *
- * The catalog lives in `catalog/` at the project root rather than inside `src/`
- * so that it survives compilation unchanged and users can edit MSRP figures in
- * a plain JSON file without a rebuild. Both `src/util/` (tsx) and `dist/util/`
- * (compiled) need to find it, so we walk up to the directory holding
- * package.json instead of guessing a relative depth.
+ * Walks up to the directory holding package.json rather than guessing a
+ * relative depth, so the same code works under tsx (src/) and compiled (dist/).
  */
 
 import { existsSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 let cachedRoot: string | null = null;
@@ -31,5 +28,7 @@ export function projectRoot(): string {
 }
 
 export function fromRoot(...segments: string[]): string {
+  const first = segments[0];
+  if (first && isAbsolute(first)) return resolve(...segments);
   return resolve(projectRoot(), ...segments);
 }

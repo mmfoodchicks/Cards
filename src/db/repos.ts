@@ -1,722 +1,787 @@
-/** Data access. All SQL lives here; nothing above this layer writes SQL. */
+/** Data access. All SQL lives here. */
 
 import type { Db } from './index.js';
 import { getDb } from './index.js';
+import { recordAudit } from './audit.js';
 import type {
-  Baseline,
-  BenchmarkKind,
-  Category,
-  DealLabel,
-  ParsedListing,
-  PriceObservation,
-  ProductType,
-  ScoredListing,
-  Watch,
-} from '../types.js';
+  BusinessProfile,
+  Expense,
+  GradingSubmission,
+  InventoryItem,
+  IsoDate,
+  MileageTrip,
+  Payout,
+  PurchaseLot,
+  Sale,
+} from '../domain/types.js';
+
+const now = (): string => new Date().toISOString();
 
 // ---------------------------------------------------------------------------
-// Listings
+// Business profile
 // ---------------------------------------------------------------------------
 
-export interface ListingRow {
-  id: string;
-  source: string;
-  source_item_id: string;
-  title: string;
-  url: string;
-  image_url: string | null;
-  currency: string;
-  price_cents: number;
-  shipping_cents: number | null;
-  landed_cents: number;
-  unit_cents: number;
-  quantity: number;
-  listing_type: string;
-  bid_count: number | null;
-  ends_at: string | null;
-  condition: string | null;
-  seller_name: string | null;
-  seller_feedback_pct: number | null;
-  seller_feedback_count: number | null;
-  location_country: string | null;
-  product_key: string | null;
-  category: string | null;
-  product_type: string | null;
-  sealed: number;
-  graded: number;
-  grader: string | null;
-  grade: number | null;
-  set_slug: string | null;
-  set_name: string | null;
-  year: number | null;
-  parse_json: string;
-  benchmark_kind: string;
-  benchmark_cents: number | null;
-  benchmark_label: string | null;
-  benchmark_source: string | null;
-  discount_pct: number | null;
-  label: string;
-  under_msrp: number;
-  confidence: number;
-  score: number;
-  notes_json: string;
-  first_seen_at: string;
-  last_seen_at: string;
-  gone_at: string | null;
-  watch_id: number | null;
-  raw_json: string | null;
+interface ProfileRow {
+  id: number; business_name: string; owner_name: string; entity_type: string; ein: string | null;
+  state: string; county: string; city: string; accounting_method: string; inventory_method: string;
+  started_on: string | null; filing_status: string; other_income_cents: number;
+  other_withholding_cents: number; prior_year_tax_cents: number | null; prior_year_agi_cents: number | null;
+  home_office_sqft: number | null; home_total_sqft: number | null; updated_at: string;
 }
 
-/**
- * Insert or refresh a listing.
- *
- * `first_seen_at` is preserved across updates — knowing how long something has
- * sat unsold is a real signal, and clobbering it would lose that history.
- */
-export function upsertListing(listing: ScoredListing, watchId: number | null, db: Db = getDb()): { isNew: boolean } {
-  const existing = db.prepare('SELECT first_seen_at FROM listings WHERE id = ?').get(listing.id) as
-    | { first_seen_at: string }
-    | undefined;
-
-  db.prepare(`
-    INSERT INTO listings (
-      id, source, source_item_id, title, url, image_url, currency,
-      price_cents, shipping_cents, landed_cents, unit_cents, quantity,
-      listing_type, bid_count, ends_at, condition,
-      seller_name, seller_feedback_pct, seller_feedback_count, location_country,
-      product_key, category, product_type, sealed, graded, grader, grade,
-      set_slug, set_name, year, parse_json,
-      benchmark_kind, benchmark_cents, benchmark_label, benchmark_source,
-      discount_pct, label, under_msrp, confidence, score, notes_json,
-      first_seen_at, last_seen_at, gone_at, watch_id, raw_json
-    ) VALUES (
-      @id, @source, @source_item_id, @title, @url, @image_url, @currency,
-      @price_cents, @shipping_cents, @landed_cents, @unit_cents, @quantity,
-      @listing_type, @bid_count, @ends_at, @condition,
-      @seller_name, @seller_feedback_pct, @seller_feedback_count, @location_country,
-      @product_key, @category, @product_type, @sealed, @graded, @grader, @grade,
-      @set_slug, @set_name, @year, @parse_json,
-      @benchmark_kind, @benchmark_cents, @benchmark_label, @benchmark_source,
-      @discount_pct, @label, @under_msrp, @confidence, @score, @notes_json,
-      @first_seen_at, @last_seen_at, NULL, @watch_id, @raw_json
-    )
-    ON CONFLICT(id) DO UPDATE SET
-      title = excluded.title,
-      url = excluded.url,
-      image_url = excluded.image_url,
-      price_cents = excluded.price_cents,
-      shipping_cents = excluded.shipping_cents,
-      landed_cents = excluded.landed_cents,
-      unit_cents = excluded.unit_cents,
-      quantity = excluded.quantity,
-      listing_type = excluded.listing_type,
-      bid_count = excluded.bid_count,
-      ends_at = excluded.ends_at,
-      benchmark_kind = excluded.benchmark_kind,
-      benchmark_cents = excluded.benchmark_cents,
-      benchmark_label = excluded.benchmark_label,
-      benchmark_source = excluded.benchmark_source,
-      discount_pct = excluded.discount_pct,
-      label = excluded.label,
-      under_msrp = excluded.under_msrp,
-      confidence = excluded.confidence,
-      score = excluded.score,
-      notes_json = excluded.notes_json,
-      last_seen_at = excluded.last_seen_at,
-      -- A listing that reappears was not sold after all.
-      gone_at = NULL,
-      watch_id = COALESCE(excluded.watch_id, listings.watch_id)
-  `).run({
-    id: listing.id,
-    source: listing.source,
-    source_item_id: listing.sourceItemId,
-    title: listing.title,
-    url: listing.url,
-    image_url: listing.imageUrl,
-    currency: listing.currency,
-    price_cents: listing.priceCents,
-    shipping_cents: listing.shippingCents,
-    landed_cents: listing.landedCents,
-    unit_cents: listing.unitCents,
-    quantity: listing.parsed.quantity,
-    listing_type: listing.listingType,
-    bid_count: listing.bidCount,
-    ends_at: listing.endsAt,
-    condition: listing.condition,
-    seller_name: listing.sellerName,
-    seller_feedback_pct: listing.sellerFeedbackPct,
-    seller_feedback_count: listing.sellerFeedbackCount,
-    location_country: listing.locationCountry,
-    product_key: listing.parsed.productKey,
-    category: listing.parsed.category,
-    product_type: listing.parsed.productType,
-    sealed: listing.parsed.sealed ? 1 : 0,
-    graded: listing.parsed.graded ? 1 : 0,
-    grader: listing.parsed.grader,
-    grade: listing.parsed.grade,
-    set_slug: listing.parsed.setSlug,
-    set_name: listing.parsed.setName,
-    year: listing.parsed.year,
-    parse_json: JSON.stringify(listing.parsed),
-    benchmark_kind: listing.benchmarkKind,
-    benchmark_cents: listing.benchmarkCents,
-    benchmark_label: listing.benchmarkLabel,
-    benchmark_source: listing.benchmarkSource,
-    discount_pct: listing.discountPct,
-    label: listing.label,
-    under_msrp: listing.underMsrp ? 1 : 0,
-    confidence: listing.confidence,
-    score: listing.score,
-    notes_json: JSON.stringify(listing.notes),
-    first_seen_at: existing?.first_seen_at ?? listing.firstSeenAt,
-    last_seen_at: listing.lastSeenAt,
-    watch_id: watchId,
-    raw_json: listing.raw === undefined ? null : JSON.stringify(listing.raw),
-  });
-
-  return { isNew: existing === undefined };
-}
-
-export interface DealFilter {
-  labels?: DealLabel[];
-  underMsrpOnly?: boolean;
-  category?: Category | null;
-  productType?: ProductType | null;
-  sealedOnly?: boolean;
-  gradedOnly?: boolean;
-  minDiscountPct?: number | null;
-  maxUnitCents?: number | null;
-  watchId?: number | null;
-  source?: string | null;
-  /** Auctions closing within this many hours. */
-  endingWithinHours?: number | null;
-  includeGone?: boolean;
-  search?: string | null;
-  sort?: 'score' | 'discount' | 'newest' | 'ending' | 'price';
-  limit?: number;
-  offset?: number;
-}
-
-export function queryListings(filter: DealFilter, db: Db = getDb()): { rows: ListingRow[]; total: number } {
-  const where: string[] = [];
-  const params: Record<string, unknown> = {};
-
-  if (!filter.includeGone) where.push('gone_at IS NULL');
-  if (filter.labels?.length) {
-    where.push(`label IN (${filter.labels.map((_, i) => `@label${i}`).join(',')})`);
-    filter.labels.forEach((l, i) => { params[`label${i}`] = l; });
-  }
-  if (filter.underMsrpOnly) where.push('under_msrp = 1');
-  if (filter.category) { where.push('category = @category'); params.category = filter.category; }
-  if (filter.productType) { where.push('product_type = @productType'); params.productType = filter.productType; }
-  if (filter.sealedOnly) where.push('sealed = 1');
-  if (filter.gradedOnly) where.push('graded = 1');
-  if (filter.minDiscountPct != null) { where.push('discount_pct >= @minDiscount'); params.minDiscount = filter.minDiscountPct; }
-  if (filter.maxUnitCents != null) { where.push('unit_cents <= @maxUnit'); params.maxUnit = filter.maxUnitCents; }
-  if (filter.watchId != null) { where.push('watch_id = @watchId'); params.watchId = filter.watchId; }
-  if (filter.source) { where.push('source = @source'); params.source = filter.source; }
-  if (filter.endingWithinHours != null) {
-    where.push("ends_at IS NOT NULL AND ends_at <= @endsBefore AND ends_at >= @now");
-    params.endsBefore = new Date(Date.now() + filter.endingWithinHours * 3_600_000).toISOString();
-    params.now = new Date().toISOString();
-  }
-  if (filter.search) { where.push('title LIKE @search'); params.search = `%${filter.search}%`; }
-
-  const clause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
-  const order = {
-    score: 'score DESC, discount_pct DESC',
-    discount: 'discount_pct DESC NULLS LAST, score DESC',
-    newest: 'first_seen_at DESC',
-    ending: 'ends_at ASC NULLS LAST',
-    price: 'unit_cents ASC',
-  }[filter.sort ?? 'score'];
-
-  const limit = Math.min(500, Math.max(1, filter.limit ?? 100));
-  const offset = Math.max(0, filter.offset ?? 0);
-
-  const total = (db.prepare(`SELECT COUNT(*) AS n FROM listings ${clause}`).get(params) as { n: number }).n;
-  const rows = db
-    .prepare(`SELECT * FROM listings ${clause} ORDER BY ${order} LIMIT ${limit} OFFSET ${offset}`)
-    .all(params) as ListingRow[];
-
-  return { rows, total };
-}
-
-export function getListing(id: string, db: Db = getDb()): ListingRow | null {
-  return (db.prepare('SELECT * FROM listings WHERE id = ?').get(id) as ListingRow | undefined) ?? null;
-}
-
-/**
- * Listings we have stopped seeing.
- *
- * A fixed-price listing that vanishes before its scheduled end date has almost
- * always sold. That inference is the only legitimate source of completed-sale
- * data available here, so it is recorded — but as its own weaker observation
- * kind, never as a reported sale.
- */
-export function findVanishedListings(
-  staleBeforeIso: string,
-  db: Db = getDb(),
-): Array<{ id: string; product_key: string | null; unit_cents: number; source: string; ends_at: string | null; last_seen_at: string; first_seen_at: string }> {
-  return db
-    .prepare(`
-      SELECT id, product_key, unit_cents, source, ends_at, last_seen_at, first_seen_at
-      FROM listings
-      WHERE gone_at IS NULL
-        AND last_seen_at < @stale
-        AND product_key IS NOT NULL
-        -- Seen more than once, so a single blip in search results does not
-        -- get mistaken for a sale.
-        AND first_seen_at < last_seen_at
-    `)
-    .all({ stale: staleBeforeIso }) as ReturnType<typeof findVanishedListings>;
-}
-
-export function markGone(id: string, goneAt: string, db: Db = getDb()): void {
-  db.prepare('UPDATE listings SET gone_at = @goneAt WHERE id = @id').run({ id, goneAt });
-}
-
-// ---------------------------------------------------------------------------
-// Price observations (append-only)
-// ---------------------------------------------------------------------------
-
-/**
- * How many times one listing may ever contribute an asking price.
- *
- * A listing that sits unsold for months is weak evidence repeated, not strong
- * evidence: the seller's price is one opinion no matter how long it stays up.
- * Four observations spans the 45-day baseline window at weekly spacing with
- * room for a re-price.
- */
-export const MAX_OBSERVATIONS_PER_LISTING = 4;
-
-export function recordObservation(obs: PriceObservation, db: Db = getDb()): void {
-  if (obs.listingId) {
-    const seen = db
-      .prepare('SELECT COUNT(*) AS n FROM price_observations WHERE listing_id = ? AND kind = ?')
-      .get(obs.listingId, obs.kind) as { n: number };
-    if (seen.n >= MAX_OBSERVATIONS_PER_LISTING) return;
-  }
-
-  db.prepare(`
-    INSERT OR IGNORE INTO price_observations
-      (product_key, observed_at, unit_cents, kind, source, listing_id, seller_id)
-    VALUES (@productKey, @observedAt, @unitCents, @kind, @source, @listingId, @sellerId)
-  `).run({
-    productKey: obs.productKey,
-    observedAt: obs.observedAt,
-    unitCents: obs.unitCents,
-    kind: obs.kind,
-    source: obs.source,
-    listingId: obs.listingId,
-    sellerId: obs.sellerId ?? null,
-  });
-}
-
-export function observationsFor(productKey: string, sinceIso: string, db: Db = getDb()): PriceObservation[] {
-  const rows = db
-    .prepare(`
-      SELECT product_key, observed_at, unit_cents, kind, source, listing_id, seller_id
-      FROM price_observations
-      WHERE product_key = @key AND observed_at >= @since
-      ORDER BY observed_at DESC
-      LIMIT 2000
-    `)
-    .all({ key: productKey, since: sinceIso }) as Array<{
-      product_key: string; observed_at: string; unit_cents: number;
-      kind: PriceObservation['kind']; source: string; listing_id: string | null;
-      seller_id: string | null;
-    }>;
-
-  return rows.map((r) => ({
-    productKey: r.product_key,
-    observedAt: r.observed_at,
-    unitCents: r.unit_cents,
-    kind: r.kind,
-    source: r.source,
-    listingId: r.listing_id,
-    sellerId: r.seller_id,
-  }));
-}
-
-export function productKeysWithObservations(sinceIso: string, db: Db = getDb()): string[] {
-  const rows = db
-    .prepare('SELECT DISTINCT product_key FROM price_observations WHERE observed_at >= ?')
-    .all(sinceIso) as Array<{ product_key: string }>;
-  return rows.map((r) => r.product_key);
-}
-
-// ---------------------------------------------------------------------------
-// Baselines
-// ---------------------------------------------------------------------------
-
-export function saveBaseline(baseline: Baseline, db: Db = getDb()): void {
-  db.prepare(`
-    INSERT INTO baselines (product_key, value_cents, kind, n, dispersion, confidence, computed_at)
-    VALUES (@productKey, @valueCents, @kind, @n, @dispersion, @confidence, @computedAt)
-    ON CONFLICT(product_key) DO UPDATE SET
-      value_cents = excluded.value_cents, kind = excluded.kind, n = excluded.n,
-      dispersion = excluded.dispersion, confidence = excluded.confidence,
-      computed_at = excluded.computed_at
-  `).run(baseline);
-}
-
-export function getBaseline(productKey: string, db: Db = getDb()): Baseline | null {
-  const row = db.prepare('SELECT * FROM baselines WHERE product_key = ?').get(productKey) as
-    | { product_key: string; value_cents: number; kind: string; n: number; dispersion: number; confidence: number; computed_at: string }
-    | undefined;
-  if (!row) return null;
+function toProfile(row: ProfileRow): BusinessProfile {
   return {
-    productKey: row.product_key,
-    valueCents: row.value_cents,
-    kind: row.kind as BenchmarkKind,
-    n: row.n,
-    dispersion: row.dispersion,
-    confidence: row.confidence,
-    computedAt: row.computed_at,
+    id: row.id,
+    businessName: row.business_name,
+    ownerName: row.owner_name,
+    entityType: row.entity_type as BusinessProfile['entityType'],
+    ein: row.ein,
+    state: row.state,
+    county: row.county,
+    city: row.city,
+    accountingMethod: row.accounting_method as BusinessProfile['accountingMethod'],
+    inventoryMethod: row.inventory_method as BusinessProfile['inventoryMethod'],
+    startedOn: row.started_on,
+    filingStatus: row.filing_status as BusinessProfile['filingStatus'],
+    otherIncomeCents: row.other_income_cents,
+    otherWithholdingCents: row.other_withholding_cents,
+    priorYearTaxCents: row.prior_year_tax_cents,
+    priorYearAgiCents: row.prior_year_agi_cents,
+    homeOfficeSqFt: row.home_office_sqft,
+    homeTotalSqFt: row.home_total_sqft,
+    updatedAt: row.updated_at,
   };
 }
 
-// ---------------------------------------------------------------------------
-// Watches
-// ---------------------------------------------------------------------------
-
-interface WatchRow {
-  id: number; name: string; query: string; sources_json: string;
-  category: string | null; product_type: string | null;
-  min_price_cents: number | null; max_price_cents: number | null;
-  min_discount_pct: number; sealed_only: number; graded_only: number;
-  exclude_lots: number; enabled: number; interval_minutes: number;
-  last_run_at: string | null; last_error: string | null; created_at: string;
+export function getProfile(db: Db = getDb()): BusinessProfile {
+  const row = db.prepare('SELECT * FROM business_profile WHERE id = 1').get() as ProfileRow | undefined;
+  if (row) return toProfile(row);
+  db.prepare('INSERT INTO business_profile (id, updated_at) VALUES (1, ?)').run(now());
+  return toProfile(db.prepare('SELECT * FROM business_profile WHERE id = 1').get() as ProfileRow);
 }
 
-function toWatch(row: WatchRow): Watch {
+export function updateProfile(patch: Partial<BusinessProfile>, db: Db = getDb()): BusinessProfile {
+  const before = getProfile(db);
+  const merged = { ...before, ...patch };
+  db.prepare(`
+    UPDATE business_profile SET
+      business_name = @businessName, owner_name = @ownerName, entity_type = @entityType, ein = @ein,
+      state = @state, county = @county, city = @city, accounting_method = @accountingMethod,
+      inventory_method = @inventoryMethod, started_on = @startedOn, filing_status = @filingStatus,
+      other_income_cents = @otherIncomeCents, other_withholding_cents = @otherWithholdingCents,
+      prior_year_tax_cents = @priorYearTaxCents, prior_year_agi_cents = @priorYearAgiCents,
+      home_office_sqft = @homeOfficeSqFt, home_total_sqft = @homeTotalSqFt, updated_at = @updatedAt
+    WHERE id = 1
+  `).run({ ...merged, updatedAt: now() });
+  const after = getProfile(db);
+  recordAudit('business_profile', 1, 'update', before, after, undefined, db);
+  return after;
+}
+
+// ---------------------------------------------------------------------------
+// Purchase lots
+// ---------------------------------------------------------------------------
+
+interface LotRow {
+  id: number; purchased_on: string; vendor: string; channel: string; description: string;
+  subtotal_cents: number; shipping_cents: number; tax_cents: number; fees_cents: number;
+  payment_method: string | null; resale_exemption_used: number; notes: string | null;
+  receipt_path: string | null; created_at: string;
+}
+
+function toLot(row: LotRow): PurchaseLot {
   return {
     id: row.id,
-    name: row.name,
-    query: row.query,
-    sources: JSON.parse(row.sources_json) as string[],
-    category: (row.category as Category | null) ?? null,
-    productType: (row.product_type as ProductType | null) ?? null,
-    minPriceCents: row.min_price_cents,
-    maxPriceCents: row.max_price_cents,
-    minDiscountPct: row.min_discount_pct,
-    sealedOnly: row.sealed_only === 1,
-    gradedOnly: row.graded_only === 1,
-    excludeLots: row.exclude_lots === 1,
-    enabled: row.enabled === 1,
-    intervalMinutes: row.interval_minutes,
-    lastRunAt: row.last_run_at,
-    lastError: row.last_error,
+    purchasedOn: row.purchased_on,
+    vendor: row.vendor,
+    channel: row.channel as PurchaseLot['channel'],
+    description: row.description,
+    subtotalCents: row.subtotal_cents,
+    shippingCents: row.shipping_cents,
+    taxCents: row.tax_cents,
+    feesCents: row.fees_cents,
+    paymentMethod: row.payment_method,
+    resaleExemptionUsed: row.resale_exemption_used === 1,
+    notes: row.notes,
+    receiptPath: row.receipt_path,
     createdAt: row.created_at,
   };
 }
 
-export function listWatches(db: Db = getDb()): Watch[] {
-  return (db.prepare('SELECT * FROM watches ORDER BY id').all() as WatchRow[]).map(toWatch);
-}
+export type LotInput = Omit<PurchaseLot, 'id' | 'createdAt'>;
 
-export function getWatch(id: number, db: Db = getDb()): Watch | null {
-  const row = db.prepare('SELECT * FROM watches WHERE id = ?').get(id) as WatchRow | undefined;
-  return row ? toWatch(row) : null;
-}
-
-export type WatchInput = Omit<Watch, 'id' | 'lastRunAt' | 'lastError' | 'createdAt'>;
-
-export function createWatch(input: WatchInput, db: Db = getDb()): Watch {
-  const result = db.prepare(`
-    INSERT INTO watches (
-      name, query, sources_json, category, product_type,
-      min_price_cents, max_price_cents, min_discount_pct,
-      sealed_only, graded_only, exclude_lots, enabled, interval_minutes, created_at
+export function createLot(input: LotInput, db: Db = getDb()): PurchaseLot {
+  const res = db.prepare(`
+    INSERT INTO purchase_lots (
+      purchased_on, vendor, channel, description, subtotal_cents, shipping_cents,
+      tax_cents, fees_cents, payment_method, resale_exemption_used, notes, receipt_path, created_at
     ) VALUES (
-      @name, @query, @sourcesJson, @category, @productType,
-      @minPriceCents, @maxPriceCents, @minDiscountPct,
-      @sealedOnly, @gradedOnly, @excludeLots, @enabled, @intervalMinutes, @createdAt
+      @purchasedOn, @vendor, @channel, @description, @subtotalCents, @shippingCents,
+      @taxCents, @feesCents, @paymentMethod, @resaleExemptionUsed, @notes, @receiptPath, @createdAt
     )
   `).run({
-    name: input.name,
-    query: input.query,
-    sourcesJson: JSON.stringify(input.sources),
-    category: input.category,
-    productType: input.productType,
-    minPriceCents: input.minPriceCents,
-    maxPriceCents: input.maxPriceCents,
-    minDiscountPct: input.minDiscountPct,
-    sealedOnly: input.sealedOnly ? 1 : 0,
-    gradedOnly: input.gradedOnly ? 1 : 0,
-    excludeLots: input.excludeLots ? 1 : 0,
-    enabled: input.enabled ? 1 : 0,
-    intervalMinutes: input.intervalMinutes,
-    createdAt: new Date().toISOString(),
+    ...input,
+    resaleExemptionUsed: input.resaleExemptionUsed ? 1 : 0,
+    createdAt: now(),
   });
-  return getWatch(Number(result.lastInsertRowid), db)!;
+  const lot = getLot(Number(res.lastInsertRowid), db)!;
+  recordAudit('purchase_lots', lot.id, 'insert', null, lot, undefined, db);
+  return lot;
 }
 
-export function updateWatch(id: number, patch: Partial<WatchInput>, db: Db = getDb()): Watch | null {
-  const current = getWatch(id, db);
-  if (!current) return null;
-  const merged = { ...current, ...patch };
-  db.prepare(`
-    UPDATE watches SET
-      name = @name, query = @query, sources_json = @sourcesJson,
-      category = @category, product_type = @productType,
-      min_price_cents = @minPriceCents, max_price_cents = @maxPriceCents,
-      min_discount_pct = @minDiscountPct, sealed_only = @sealedOnly,
-      graded_only = @gradedOnly, exclude_lots = @excludeLots,
-      enabled = @enabled, interval_minutes = @intervalMinutes
-    WHERE id = @id
-  `).run({
-    id,
-    name: merged.name,
-    query: merged.query,
-    sourcesJson: JSON.stringify(merged.sources),
-    category: merged.category,
-    productType: merged.productType,
-    minPriceCents: merged.minPriceCents,
-    maxPriceCents: merged.maxPriceCents,
-    minDiscountPct: merged.minDiscountPct,
-    sealedOnly: merged.sealedOnly ? 1 : 0,
-    gradedOnly: merged.gradedOnly ? 1 : 0,
-    excludeLots: merged.excludeLots ? 1 : 0,
-    enabled: merged.enabled ? 1 : 0,
-    intervalMinutes: merged.intervalMinutes,
-  });
-  return getWatch(id, db);
+export function getLot(id: number, db: Db = getDb()): PurchaseLot | null {
+  const row = db.prepare('SELECT * FROM purchase_lots WHERE id = ?').get(id) as LotRow | undefined;
+  return row ? toLot(row) : null;
 }
 
-export function deleteWatch(id: number, db: Db = getDb()): boolean {
-  return db.prepare('DELETE FROM watches WHERE id = ?').run(id).changes > 0;
+export function listLots(range?: { from?: IsoDate; to?: IsoDate }, db: Db = getDb()): PurchaseLot[] {
+  const clauses: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (range?.from) { clauses.push('purchased_on >= @from'); params.from = range.from; }
+  if (range?.to) { clauses.push('purchased_on <= @to'); params.to = range.to; }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return (db.prepare(`SELECT * FROM purchase_lots ${where} ORDER BY purchased_on DESC, id DESC`).all(params) as LotRow[]).map(toLot);
 }
 
-export function markWatchRun(id: number, error: string | null, db: Db = getDb()): void {
-  db.prepare('UPDATE watches SET last_run_at = @now, last_error = @error WHERE id = @id')
-    .run({ id, now: new Date().toISOString(), error });
-}
-
-/** Watches whose interval has elapsed. */
-export function dueWatches(now: Date, db: Db = getDb()): Watch[] {
-  return listWatches(db).filter((w) => {
-    if (!w.enabled) return false;
-    if (!w.lastRunAt) return true;
-    return now.getTime() - Date.parse(w.lastRunAt) >= w.intervalMinutes * 60_000;
-  });
+export function deleteLot(id: number, reason: string | undefined, db: Db = getDb()): boolean {
+  const before = getLot(id, db);
+  if (!before) return false;
+  const changed = db.prepare('DELETE FROM purchase_lots WHERE id = ?').run(id).changes > 0;
+  if (changed) recordAudit('purchase_lots', id, 'delete', before, null, reason, db);
+  return changed;
 }
 
 // ---------------------------------------------------------------------------
-// Alerts
+// Inventory items
 // ---------------------------------------------------------------------------
 
-export function createAlert(
-  listingId: string,
-  watchId: number | null,
-  label: DealLabel,
-  discountPct: number | null,
-  db: Db = getDb(),
-): boolean {
-  const res = db.prepare(`
-    INSERT OR IGNORE INTO alerts (listing_id, watch_id, label, discount_pct, created_at)
-    VALUES (@listingId, @watchId, @label, @discountPct, @createdAt)
-  `).run({ listingId, watchId, label, discountPct, createdAt: new Date().toISOString() });
-  return res.changes > 0;
+interface ItemRow {
+  id: number; lot_id: number | null; parent_item_id: number | null; kind: string; holding_intent: string;
+  description: string; category: string | null; set_name: string | null; year: number | null;
+  quantity: number; acquired_on: string; basis_cents: number; estimated_value_cents: number | null;
+  status: string; graded_by: string | null; grade: string | null; cert_number: string | null;
+  location: string | null; notes: string | null; created_at: string; updated_at: string;
 }
 
-export function pendingAlerts(db: Db = getDb()): Array<{ id: number; listing_id: string; label: string; discount_pct: number | null }> {
-  return db
-    .prepare('SELECT id, listing_id, label, discount_pct FROM alerts WHERE notified_at IS NULL AND dismissed = 0 ORDER BY id')
-    .all() as ReturnType<typeof pendingAlerts>;
-}
-
-export function markAlertNotified(id: number, db: Db = getDb()): void {
-  db.prepare('UPDATE alerts SET notified_at = ? WHERE id = ?').run(new Date().toISOString(), id);
-}
-
-export function dismissAlert(id: number, db: Db = getDb()): void {
-  db.prepare('UPDATE alerts SET dismissed = 1 WHERE id = ?').run(id);
-}
-
-// ---------------------------------------------------------------------------
-// MSRP overrides
-// ---------------------------------------------------------------------------
-
-export interface MsrpOverride {
-  entryId: string;
-  msrpCents: number | null;
-  confidence: 'high' | 'medium' | 'low' | null;
-  note: string | null;
-  deleted: boolean;
-  payload: Record<string, unknown> | null;
-  updatedAt: string;
-}
-
-export function listMsrpOverrides(db: Db = getDb()): MsrpOverride[] {
-  const rows = db.prepare('SELECT * FROM msrp_overrides').all() as Array<{
-    entry_id: string; msrp_cents: number | null; confidence: string | null;
-    note: string | null; deleted: number; payload_json: string | null; updated_at: string;
-  }>;
-  return rows.map((r) => ({
-    entryId: r.entry_id,
-    msrpCents: r.msrp_cents,
-    confidence: r.confidence as MsrpOverride['confidence'],
-    note: r.note,
-    deleted: r.deleted === 1,
-    payload: r.payload_json ? (JSON.parse(r.payload_json) as Record<string, unknown>) : null,
-    updatedAt: r.updated_at,
-  }));
-}
-
-export function saveMsrpOverride(override: Omit<MsrpOverride, 'updatedAt'>, db: Db = getDb()): void {
-  db.prepare(`
-    INSERT INTO msrp_overrides (entry_id, msrp_cents, confidence, note, deleted, payload_json, updated_at)
-    VALUES (@entryId, @msrpCents, @confidence, @note, @deleted, @payloadJson, @updatedAt)
-    ON CONFLICT(entry_id) DO UPDATE SET
-      msrp_cents = excluded.msrp_cents, confidence = excluded.confidence,
-      note = excluded.note, deleted = excluded.deleted,
-      payload_json = excluded.payload_json, updated_at = excluded.updated_at
-  `).run({
-    entryId: override.entryId,
-    msrpCents: override.msrpCents,
-    confidence: override.confidence,
-    note: override.note,
-    deleted: override.deleted ? 1 : 0,
-    payloadJson: override.payload ? JSON.stringify(override.payload) : null,
-    updatedAt: new Date().toISOString(),
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Scan runs
-// ---------------------------------------------------------------------------
-
-export function startScanRun(watchId: number | null, source: string, db: Db = getDb()): number {
-  const res = db
-    .prepare('INSERT INTO scan_runs (watch_id, source, started_at) VALUES (?, ?, ?)')
-    .run(watchId, source, new Date().toISOString());
-  return Number(res.lastInsertRowid);
-}
-
-export function finishScanRun(
-  id: number,
-  stats: { listingsSeen: number; newListings: number; dealsFound: number; callsUsed: number; warnings: string[]; error?: string | null },
-  db: Db = getDb(),
-): void {
-  db.prepare(`
-    UPDATE scan_runs SET finished_at = @finishedAt, listings_seen = @listingsSeen,
-      new_listings = @newListings, deals_found = @dealsFound, calls_used = @callsUsed,
-      warnings_json = @warningsJson, error = @error
-    WHERE id = @id
-  `).run({
-    id,
-    finishedAt: new Date().toISOString(),
-    listingsSeen: stats.listingsSeen,
-    newListings: stats.newListings,
-    dealsFound: stats.dealsFound,
-    callsUsed: stats.callsUsed,
-    warningsJson: JSON.stringify(stats.warnings),
-    error: stats.error ?? null,
-  });
-}
-
-export function recentScanRuns(limit = 25, db: Db = getDb()): unknown[] {
-  return db.prepare('SELECT * FROM scan_runs ORDER BY started_at DESC LIMIT ?').all(limit);
-}
-
-/** Rehydrates the parsed structure stored alongside a listing row. */
-export function parsedFromRow(row: ListingRow): ParsedListing {
-  return JSON.parse(row.parse_json) as ParsedListing;
-}
-
-// ---------------------------------------------------------------------------
-// Provider comps
-// ---------------------------------------------------------------------------
-
-export interface ProviderComp {
-  productKey: string;
-  provider: string;
-  valueCents: number;
-  basis: string;
-  sampleSize: number | null;
-  fetchedAt: string;
-  detail: Record<string, unknown> | null;
-}
-
-export function saveProviderComp(comp: Omit<ProviderComp, 'fetchedAt'>, db: Db = getDb()): void {
-  db.prepare(`
-    INSERT INTO provider_comps (product_key, provider, value_cents, basis, sample_size, fetched_at, detail_json)
-    VALUES (@productKey, @provider, @valueCents, @basis, @sampleSize, @fetchedAt, @detailJson)
-    ON CONFLICT(product_key, provider) DO UPDATE SET
-      value_cents = excluded.value_cents, basis = excluded.basis,
-      sample_size = excluded.sample_size, fetched_at = excluded.fetched_at,
-      detail_json = excluded.detail_json
-  `).run({
-    productKey: comp.productKey,
-    provider: comp.provider,
-    valueCents: comp.valueCents,
-    basis: comp.basis,
-    sampleSize: comp.sampleSize,
-    fetchedAt: new Date().toISOString(),
-    detailJson: comp.detail ? JSON.stringify(comp.detail) : null,
-  });
-}
-
-export function getProviderComp(productKey: string, db: Db = getDb()): ProviderComp | null {
-  const row = db
-    .prepare('SELECT * FROM provider_comps WHERE product_key = ? ORDER BY fetched_at DESC LIMIT 1')
-    .get(productKey) as
-    | { product_key: string; provider: string; value_cents: number; basis: string; sample_size: number | null; fetched_at: string; detail_json: string | null }
-    | undefined;
-  if (!row) return null;
+function toItem(row: ItemRow): InventoryItem {
   return {
-    productKey: row.product_key,
-    provider: row.provider,
-    valueCents: row.value_cents,
-    basis: row.basis,
-    sampleSize: row.sample_size,
-    fetchedAt: row.fetched_at,
-    detail: row.detail_json ? (JSON.parse(row.detail_json) as Record<string, unknown>) : null,
+    id: row.id,
+    lotId: row.lot_id,
+    parentItemId: row.parent_item_id,
+    kind: row.kind as InventoryItem['kind'],
+    holdingIntent: row.holding_intent as InventoryItem['holdingIntent'],
+    description: row.description,
+    category: row.category,
+    setName: row.set_name,
+    year: row.year,
+    quantity: row.quantity,
+    acquiredOn: row.acquired_on,
+    basisCents: row.basis_cents,
+    estimatedValueCents: row.estimated_value_cents,
+    status: row.status as InventoryItem['status'],
+    gradedBy: row.graded_by,
+    grade: row.grade,
+    certNumber: row.cert_number,
+    location: row.location,
+    notes: row.notes,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
   };
 }
 
-/**
- * Product keys that would benefit from a comp lookup: seen recently, and
- * either never quoted or quoted long enough ago to be stale.
- */
-export function productKeysNeedingComps(
-  staleBeforeIso: string,
-  limit: number,
-  db: Db = getDb(),
-): Array<{ product_key: string; parse_json: string }> {
-  return db
-    .prepare(`
-      SELECT l.product_key, MIN(l.parse_json) AS parse_json
-      FROM listings l
-      LEFT JOIN provider_comps pc ON pc.product_key = l.product_key
-      WHERE l.product_key IS NOT NULL
-        AND l.gone_at IS NULL
-        AND l.sealed = 0
-        AND (pc.fetched_at IS NULL OR pc.fetched_at < @stale)
-      GROUP BY l.product_key
-      ORDER BY COUNT(*) DESC
-      LIMIT @limit
-    `)
-    .all({ stale: staleBeforeIso, limit }) as ReturnType<typeof productKeysNeedingComps>;
+export type ItemInput = Omit<InventoryItem, 'id' | 'createdAt' | 'updatedAt'>;
+
+export function createItem(input: ItemInput, db: Db = getDb()): InventoryItem {
+  const stamp = now();
+  const res = db.prepare(`
+    INSERT INTO inventory_items (
+      lot_id, parent_item_id, kind, holding_intent, description, category, set_name, year,
+      quantity, acquired_on, basis_cents, estimated_value_cents, status,
+      graded_by, grade, cert_number, location, notes, created_at, updated_at
+    ) VALUES (
+      @lotId, @parentItemId, @kind, @holdingIntent, @description, @category, @setName, @year,
+      @quantity, @acquiredOn, @basisCents, @estimatedValueCents, @status,
+      @gradedBy, @grade, @certNumber, @location, @notes, @createdAt, @updatedAt
+    )
+  `).run({ ...input, createdAt: stamp, updatedAt: stamp });
+  const item = getItem(Number(res.lastInsertRowid), db)!;
+  recordAudit('inventory_items', item.id, 'insert', null, item, undefined, db);
+  return item;
+}
+
+export function getItem(id: number, db: Db = getDb()): InventoryItem | null {
+  const row = db.prepare('SELECT * FROM inventory_items WHERE id = ?').get(id) as ItemRow | undefined;
+  return row ? toItem(row) : null;
+}
+
+export function updateItem(id: number, patch: Partial<ItemInput>, reason: string | undefined, db: Db = getDb()): InventoryItem | null {
+  const before = getItem(id, db);
+  if (!before) return null;
+  const merged = { ...before, ...patch };
+  db.prepare(`
+    UPDATE inventory_items SET
+      lot_id = @lotId, parent_item_id = @parentItemId, kind = @kind, holding_intent = @holdingIntent,
+      description = @description, category = @category, set_name = @setName, year = @year,
+      quantity = @quantity, acquired_on = @acquiredOn, basis_cents = @basisCents,
+      estimated_value_cents = @estimatedValueCents, status = @status, graded_by = @gradedBy,
+      grade = @grade, cert_number = @certNumber, location = @location, notes = @notes,
+      updated_at = @updatedAt
+    WHERE id = @id
+  `).run({ ...merged, id, updatedAt: now() });
+  const after = getItem(id, db)!;
+  recordAudit('inventory_items', id, 'update', before, after, reason, db);
+  return after;
+}
+
+export interface ItemFilter {
+  status?: InventoryItem['status'][];
+  kind?: InventoryItem['kind'][];
+  holdingIntent?: InventoryItem['holdingIntent'];
+  lotId?: number;
+  parentItemId?: number;
+  search?: string;
+  acquiredBefore?: IsoDate;
+  limit?: number;
+  offset?: number;
+}
+
+export function listItems(filter: ItemFilter = {}, db: Db = getDb()): { items: InventoryItem[]; total: number } {
+  const clauses: string[] = [];
+  const params: Record<string, unknown> = {};
+
+  if (filter.status?.length) {
+    clauses.push(`status IN (${filter.status.map((_, i) => `@st${i}`).join(',')})`);
+    filter.status.forEach((s, i) => { params[`st${i}`] = s; });
+  }
+  if (filter.kind?.length) {
+    clauses.push(`kind IN (${filter.kind.map((_, i) => `@kd${i}`).join(',')})`);
+    filter.kind.forEach((k, i) => { params[`kd${i}`] = k; });
+  }
+  if (filter.holdingIntent) { clauses.push('holding_intent = @intent'); params.intent = filter.holdingIntent; }
+  if (filter.lotId !== undefined) { clauses.push('lot_id = @lotId'); params.lotId = filter.lotId; }
+  if (filter.parentItemId !== undefined) { clauses.push('parent_item_id = @parentId'); params.parentId = filter.parentItemId; }
+  if (filter.acquiredBefore) { clauses.push('acquired_on <= @acquiredBefore'); params.acquiredBefore = filter.acquiredBefore; }
+  if (filter.search) {
+    clauses.push('(description LIKE @q OR set_name LIKE @q OR category LIKE @q OR cert_number LIKE @q)');
+    params.q = `%${filter.search}%`;
+  }
+
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const total = (db.prepare(`SELECT COUNT(*) AS n FROM inventory_items ${where}`).get(params) as { n: number }).n;
+  const limit = Math.min(1000, Math.max(1, filter.limit ?? 200));
+  const offset = Math.max(0, filter.offset ?? 0);
+  const rows = db
+    .prepare(`SELECT * FROM inventory_items ${where} ORDER BY acquired_on DESC, id DESC LIMIT ${limit} OFFSET ${offset}`)
+    .all(params) as ItemRow[];
+  return { items: rows.map(toItem), total };
+}
+
+/** Items in the given lot, used when reallocating a lot's cost. */
+export function itemsInLot(lotId: number, db: Db = getDb()): InventoryItem[] {
+  return (db.prepare('SELECT * FROM inventory_items WHERE lot_id = ? ORDER BY id').all(lotId) as ItemRow[]).map(toItem);
+}
+
+export function childItems(parentId: number, db: Db = getDb()): InventoryItem[] {
+  return (db.prepare('SELECT * FROM inventory_items WHERE parent_item_id = ? ORDER BY id').all(parentId) as ItemRow[]).map(toItem);
+}
+
+export function deleteItem(id: number, reason: string | undefined, db: Db = getDb()): boolean {
+  const before = getItem(id, db);
+  if (!before) return false;
+  const sold = db.prepare('SELECT COUNT(*) AS n FROM sale_lines WHERE item_id = ?').get(id) as { n: number };
+  if (sold.n > 0) {
+    throw new Error('This item has been sold. Delete the sale first, or the books will not tie.');
+  }
+  const changed = db.prepare('DELETE FROM inventory_items WHERE id = ?').run(id).changes > 0;
+  if (changed) recordAudit('inventory_items', id, 'delete', before, null, reason, db);
+  return changed;
 }
 
 // ---------------------------------------------------------------------------
-// Retention
+// Sales
 // ---------------------------------------------------------------------------
 
+interface SaleRow {
+  id: number; sold_on: string; channel: string; order_ref: string | null; buyer_state: string | null;
+  gross_cents: number; shipping_charged_cents: number; sales_tax_collected_cents: number;
+  sales_tax_remitted_by_platform: number; platform_fee_cents: number;
+  payment_processing_fee_cents: number; shipping_cost_cents: number; other_fee_cents: number;
+  refunded_cents: number; notes: string | null; created_at: string;
+}
+
+function toSale(row: SaleRow): Sale {
+  return {
+    id: row.id,
+    soldOn: row.sold_on,
+    channel: row.channel as Sale['channel'],
+    orderRef: row.order_ref,
+    buyerState: row.buyer_state,
+    grossCents: row.gross_cents,
+    shippingChargedCents: row.shipping_charged_cents,
+    salesTaxCollectedCents: row.sales_tax_collected_cents,
+    salesTaxRemittedByPlatform: row.sales_tax_remitted_by_platform === 1,
+    platformFeeCents: row.platform_fee_cents,
+    paymentProcessingFeeCents: row.payment_processing_fee_cents,
+    shippingCostCents: row.shipping_cost_cents,
+    otherFeeCents: row.other_fee_cents,
+    refundedCents: row.refunded_cents,
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+export interface SaleLineInput {
+  itemId: number;
+  quantity: number;
+  allocatedGrossCents: number;
+  cogsCents: number;
+}
+
+export type SaleInput = Omit<Sale, 'id' | 'createdAt'>;
+
 /**
- * Delete stored marketplace listings older than a cutoff.
+ * Record a sale and relieve the sold items from inventory.
  *
- * eBay's API License Agreement permits only "limited intermediate copies" of
- * their data, to be deleted when no longer needed, so listing rows are treated
- * as an expiring cache. The derived price observations are our own
- * measurements and are kept — that is what makes the market baselines improve
- * over time without retaining anyone else's catalog.
+ * Done in one transaction: a sale that recorded revenue without moving the
+ * item's basis into cost of goods sold would overstate profit, and the two
+ * halves must never be able to come apart.
  */
-export function purgeOldListings(cutoffIso: string, db: Db = getDb()): number {
-  return db
-    .prepare('DELETE FROM listings WHERE (gone_at IS NOT NULL AND gone_at < @cutoff) OR last_seen_at < @cutoff')
-    .run({ cutoff: cutoffIso }).changes;
+export function createSale(input: SaleInput, lines: SaleLineInput[], db: Db = getDb()): Sale {
+  const run = db.transaction(() => {
+    const res = db.prepare(`
+      INSERT INTO sales (
+        sold_on, channel, order_ref, buyer_state, gross_cents, shipping_charged_cents,
+        sales_tax_collected_cents, sales_tax_remitted_by_platform, platform_fee_cents,
+        payment_processing_fee_cents, shipping_cost_cents, other_fee_cents, refunded_cents,
+        notes, created_at
+      ) VALUES (
+        @soldOn, @channel, @orderRef, @buyerState, @grossCents, @shippingChargedCents,
+        @salesTaxCollectedCents, @salesTaxRemittedByPlatform, @platformFeeCents,
+        @paymentProcessingFeeCents, @shippingCostCents, @otherFeeCents, @refundedCents,
+        @notes, @createdAt
+      )
+    `).run({
+      ...input,
+      salesTaxRemittedByPlatform: input.salesTaxRemittedByPlatform ? 1 : 0,
+      createdAt: now(),
+    });
+
+    const saleId = Number(res.lastInsertRowid);
+    const insertLine = db.prepare(`
+      INSERT INTO sale_lines (sale_id, item_id, quantity, allocated_gross_cents, cogs_cents)
+      VALUES (@saleId, @itemId, @quantity, @allocatedGrossCents, @cogsCents)
+    `);
+
+    for (const line of lines) {
+      const item = getItem(line.itemId, db);
+      if (!item) throw new Error(`Cannot sell item ${line.itemId}: it does not exist.`);
+      if (item.status === 'sold') throw new Error(`"${item.description}" is already marked sold.`);
+      insertLine.run({ saleId, ...line });
+      db.prepare('UPDATE inventory_items SET status = ?, updated_at = ? WHERE id = ?')
+        .run('sold', now(), line.itemId);
+    }
+    return saleId;
+  });
+
+  const saleId = run();
+  const sale = getSale(saleId, db)!;
+  recordAudit('sales', saleId, 'insert', null, { sale, lines }, undefined, db);
+  return sale;
+}
+
+export function getSale(id: number, db: Db = getDb()): Sale | null {
+  const row = db.prepare('SELECT * FROM sales WHERE id = ?').get(id) as SaleRow | undefined;
+  return row ? toSale(row) : null;
+}
+
+export function saleLines(saleId: number, db: Db = getDb()): Array<SaleLineInput & { saleId: number }> {
+  return db.prepare('SELECT sale_id AS saleId, item_id AS itemId, quantity, allocated_gross_cents AS allocatedGrossCents, cogs_cents AS cogsCents FROM sale_lines WHERE sale_id = ?')
+    .all(saleId) as Array<SaleLineInput & { saleId: number }>;
+}
+
+export function listSales(range?: { from?: IsoDate; to?: IsoDate; channel?: string }, db: Db = getDb()): Sale[] {
+  const clauses: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (range?.from) { clauses.push('sold_on >= @from'); params.from = range.from; }
+  if (range?.to) { clauses.push('sold_on <= @to'); params.to = range.to; }
+  if (range?.channel) { clauses.push('channel = @channel'); params.channel = range.channel; }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return (db.prepare(`SELECT * FROM sales ${where} ORDER BY sold_on DESC, id DESC`).all(params) as SaleRow[]).map(toSale);
+}
+
+/** Reverse a sale, putting its items back on hand. */
+export function deleteSale(id: number, reason: string | undefined, db: Db = getDb()): boolean {
+  const before = getSale(id, db);
+  if (!before) return false;
+  const lines = saleLines(id, db);
+  const run = db.transaction(() => {
+    for (const line of lines) {
+      db.prepare('UPDATE inventory_items SET status = ?, updated_at = ? WHERE id = ?')
+        .run('on-hand', now(), line.itemId);
+    }
+    return db.prepare('DELETE FROM sales WHERE id = ?').run(id).changes > 0;
+  });
+  const changed = run();
+  if (changed) recordAudit('sales', id, 'delete', { sale: before, lines }, null, reason, db);
+  return changed;
+}
+
+// ---------------------------------------------------------------------------
+// Expenses
+// ---------------------------------------------------------------------------
+
+interface ExpenseRow {
+  id: number; incurred_on: string; account_key: string; vendor: string | null; description: string;
+  amount_cents: number; business_use_percent: number; payment_method: string | null;
+  receipt_path: string | null; notes: string | null; created_at: string;
+}
+
+function toExpense(row: ExpenseRow): Expense {
+  return {
+    id: row.id,
+    incurredOn: row.incurred_on,
+    accountKey: row.account_key,
+    vendor: row.vendor,
+    description: row.description,
+    amountCents: row.amount_cents,
+    businessUsePercent: row.business_use_percent,
+    paymentMethod: row.payment_method,
+    receiptPath: row.receipt_path,
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+export type ExpenseInput = Omit<Expense, 'id' | 'createdAt'>;
+
+export function createExpense(input: ExpenseInput, db: Db = getDb()): Expense {
+  const res = db.prepare(`
+    INSERT INTO expenses (
+      incurred_on, account_key, vendor, description, amount_cents,
+      business_use_percent, payment_method, receipt_path, notes, created_at
+    ) VALUES (
+      @incurredOn, @accountKey, @vendor, @description, @amountCents,
+      @businessUsePercent, @paymentMethod, @receiptPath, @notes, @createdAt
+    )
+  `).run({ ...input, createdAt: now() });
+  const expense = getExpense(Number(res.lastInsertRowid), db)!;
+  recordAudit('expenses', expense.id, 'insert', null, expense, undefined, db);
+  return expense;
+}
+
+export function getExpense(id: number, db: Db = getDb()): Expense | null {
+  const row = db.prepare('SELECT * FROM expenses WHERE id = ?').get(id) as ExpenseRow | undefined;
+  return row ? toExpense(row) : null;
+}
+
+export function updateExpense(id: number, patch: Partial<ExpenseInput>, reason: string | undefined, db: Db = getDb()): Expense | null {
+  const before = getExpense(id, db);
+  if (!before) return null;
+  const merged = { ...before, ...patch };
+  db.prepare(`
+    UPDATE expenses SET incurred_on = @incurredOn, account_key = @accountKey, vendor = @vendor,
+      description = @description, amount_cents = @amountCents, business_use_percent = @businessUsePercent,
+      payment_method = @paymentMethod, receipt_path = @receiptPath, notes = @notes
+    WHERE id = @id
+  `).run({ ...merged, id });
+  const after = getExpense(id, db)!;
+  recordAudit('expenses', id, 'update', before, after, reason, db);
+  return after;
+}
+
+export function listExpenses(range?: { from?: IsoDate; to?: IsoDate; accountKey?: string }, db: Db = getDb()): Expense[] {
+  const clauses: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (range?.from) { clauses.push('incurred_on >= @from'); params.from = range.from; }
+  if (range?.to) { clauses.push('incurred_on <= @to'); params.to = range.to; }
+  if (range?.accountKey) { clauses.push('account_key = @accountKey'); params.accountKey = range.accountKey; }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return (db.prepare(`SELECT * FROM expenses ${where} ORDER BY incurred_on DESC, id DESC`).all(params) as ExpenseRow[]).map(toExpense);
+}
+
+export function deleteExpense(id: number, reason: string | undefined, db: Db = getDb()): boolean {
+  const before = getExpense(id, db);
+  if (!before) return false;
+  const changed = db.prepare('DELETE FROM expenses WHERE id = ?').run(id).changes > 0;
+  if (changed) recordAudit('expenses', id, 'delete', before, null, reason, db);
+  return changed;
+}
+
+// ---------------------------------------------------------------------------
+// Mileage
+// ---------------------------------------------------------------------------
+
+interface MileageRow {
+  id: number; driven_on: string; purpose: string; from_location: string | null; to_location: string | null;
+  miles: number; round_trip: number; odometer_start: number | null; odometer_end: number | null;
+  notes: string | null; created_at: string;
+}
+
+function toTrip(row: MileageRow): MileageTrip {
+  return {
+    id: row.id,
+    drivenOn: row.driven_on,
+    purpose: row.purpose,
+    fromLocation: row.from_location,
+    toLocation: row.to_location,
+    miles: row.miles,
+    roundTrip: row.round_trip === 1,
+    odometerStart: row.odometer_start,
+    odometerEnd: row.odometer_end,
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+export type MileageInput = Omit<MileageTrip, 'id' | 'createdAt'>;
+
+export function createTrip(input: MileageInput, db: Db = getDb()): MileageTrip {
+  const res = db.prepare(`
+    INSERT INTO mileage_trips (
+      driven_on, purpose, from_location, to_location, miles, round_trip,
+      odometer_start, odometer_end, notes, created_at
+    ) VALUES (
+      @drivenOn, @purpose, @fromLocation, @toLocation, @miles, @roundTrip,
+      @odometerStart, @odometerEnd, @notes, @createdAt
+    )
+  `).run({ ...input, roundTrip: input.roundTrip ? 1 : 0, createdAt: now() });
+  const trip = getTrip(Number(res.lastInsertRowid), db)!;
+  recordAudit('mileage_trips', trip.id, 'insert', null, trip, undefined, db);
+  return trip;
+}
+
+export function getTrip(id: number, db: Db = getDb()): MileageTrip | null {
+  const row = db.prepare('SELECT * FROM mileage_trips WHERE id = ?').get(id) as MileageRow | undefined;
+  return row ? toTrip(row) : null;
+}
+
+export function listTrips(range?: { from?: IsoDate; to?: IsoDate }, db: Db = getDb()): MileageTrip[] {
+  const clauses: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (range?.from) { clauses.push('driven_on >= @from'); params.from = range.from; }
+  if (range?.to) { clauses.push('driven_on <= @to'); params.to = range.to; }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return (db.prepare(`SELECT * FROM mileage_trips ${where} ORDER BY driven_on DESC, id DESC`).all(params) as MileageRow[]).map(toTrip);
+}
+
+export function deleteTrip(id: number, reason: string | undefined, db: Db = getDb()): boolean {
+  const before = getTrip(id, db);
+  if (!before) return false;
+  const changed = db.prepare('DELETE FROM mileage_trips WHERE id = ?').run(id).changes > 0;
+  if (changed) recordAudit('mileage_trips', id, 'delete', before, null, reason, db);
+  return changed;
+}
+
+// ---------------------------------------------------------------------------
+// Payouts
+// ---------------------------------------------------------------------------
+
+interface PayoutRow {
+  id: number; channel: string; received_on: string; period_start: string | null; period_end: string | null;
+  gross_cents: number; fees_cents: number; refunds_cents: number; shipping_labels_cents: number;
+  sales_tax_cents: number; net_cents: number; reference: string | null; notes: string | null; created_at: string;
+}
+
+function toPayout(row: PayoutRow): Payout {
+  return {
+    id: row.id,
+    channel: row.channel as Payout['channel'],
+    receivedOn: row.received_on,
+    periodStart: row.period_start,
+    periodEnd: row.period_end,
+    grossCents: row.gross_cents,
+    feesCents: row.fees_cents,
+    refundsCents: row.refunds_cents,
+    shippingLabelsCents: row.shipping_labels_cents,
+    salesTaxCents: row.sales_tax_cents,
+    netCents: row.net_cents,
+    reference: row.reference,
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+export type PayoutInput = Omit<Payout, 'id' | 'createdAt'>;
+
+export function createPayout(input: PayoutInput, db: Db = getDb()): Payout {
+  const res = db.prepare(`
+    INSERT INTO payouts (
+      channel, received_on, period_start, period_end, gross_cents, fees_cents,
+      refunds_cents, shipping_labels_cents, sales_tax_cents, net_cents, reference, notes, created_at
+    ) VALUES (
+      @channel, @receivedOn, @periodStart, @periodEnd, @grossCents, @feesCents,
+      @refundsCents, @shippingLabelsCents, @salesTaxCents, @netCents, @reference, @notes, @createdAt
+    )
+  `).run({ ...input, createdAt: now() });
+  const payout = db.prepare('SELECT * FROM payouts WHERE id = ?').get(Number(res.lastInsertRowid)) as PayoutRow;
+  recordAudit('payouts', payout.id, 'insert', null, toPayout(payout), undefined, db);
+  return toPayout(payout);
+}
+
+export function listPayouts(range?: { from?: IsoDate; to?: IsoDate }, db: Db = getDb()): Payout[] {
+  const clauses: string[] = [];
+  const params: Record<string, unknown> = {};
+  if (range?.from) { clauses.push('received_on >= @from'); params.from = range.from; }
+  if (range?.to) { clauses.push('received_on <= @to'); params.to = range.to; }
+  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  return (db.prepare(`SELECT * FROM payouts ${where} ORDER BY received_on DESC, id DESC`).all(params) as PayoutRow[]).map(toPayout);
+}
+
+// ---------------------------------------------------------------------------
+// Grading submissions
+// ---------------------------------------------------------------------------
+
+interface SubmissionRow {
+  id: number; grader: string; service_level: string | null; submitted_on: string; returned_on: string | null;
+  submission_number: string | null; fee_cents: number; shipping_to_cents: number;
+  shipping_back_cents: number; insurance_cents: number; notes: string | null; created_at: string;
+}
+
+function toSubmission(row: SubmissionRow): GradingSubmission {
+  return {
+    id: row.id,
+    grader: row.grader,
+    serviceLevel: row.service_level,
+    submittedOn: row.submitted_on,
+    returnedOn: row.returned_on,
+    submissionNumber: row.submission_number,
+    feeCents: row.fee_cents,
+    shippingToCents: row.shipping_to_cents,
+    shippingBackCents: row.shipping_back_cents,
+    insuranceCents: row.insurance_cents,
+    notes: row.notes,
+    createdAt: row.created_at,
+  };
+}
+
+export type SubmissionInput = Omit<GradingSubmission, 'id' | 'createdAt'>;
+
+export function createSubmission(input: SubmissionInput, itemIds: number[], db: Db = getDb()): GradingSubmission {
+  const run = db.transaction(() => {
+    const res = db.prepare(`
+      INSERT INTO grading_submissions (
+        grader, service_level, submitted_on, returned_on, submission_number,
+        fee_cents, shipping_to_cents, shipping_back_cents, insurance_cents, notes, created_at
+      ) VALUES (
+        @grader, @serviceLevel, @submittedOn, @returnedOn, @submissionNumber,
+        @feeCents, @shippingToCents, @shippingBackCents, @insuranceCents, @notes, @createdAt
+      )
+    `).run({ ...input, createdAt: now() });
+    const submissionId = Number(res.lastInsertRowid);
+
+    const link = db.prepare(`
+      INSERT INTO grading_submission_items (submission_id, item_id, allocated_cost_cents)
+      VALUES (?, ?, 0)
+    `);
+    for (const itemId of itemIds) {
+      link.run(submissionId, itemId);
+      // The card is physically gone; it should not show as available to sell.
+      db.prepare('UPDATE inventory_items SET status = ?, updated_at = ? WHERE id = ?')
+        .run('at-grading', now(), itemId);
+    }
+    return submissionId;
+  });
+
+  const id = run();
+  const submission = getSubmission(id, db)!;
+  recordAudit('grading_submissions', id, 'insert', null, { submission, itemIds }, undefined, db);
+  return submission;
+}
+
+export function getSubmission(id: number, db: Db = getDb()): GradingSubmission | null {
+  const row = db.prepare('SELECT * FROM grading_submissions WHERE id = ?').get(id) as SubmissionRow | undefined;
+  return row ? toSubmission(row) : null;
+}
+
+export function listSubmissions(db: Db = getDb()): GradingSubmission[] {
+  return (db.prepare('SELECT * FROM grading_submissions ORDER BY submitted_on DESC, id DESC').all() as SubmissionRow[]).map(toSubmission);
+}
+
+export function submissionItems(submissionId: number, db: Db = getDb()): Array<{ itemId: number; resultGrade: string | null; certNumber: string | null; allocatedCostCents: number }> {
+  return db.prepare(`
+    SELECT item_id AS itemId, result_grade AS resultGrade, cert_number AS certNumber,
+           allocated_cost_cents AS allocatedCostCents
+    FROM grading_submission_items WHERE submission_id = ?
+  `).all(submissionId) as Array<{ itemId: number; resultGrade: string | null; certNumber: string | null; allocatedCostCents: number }>;
+}
+
+export function updateSubmissionItem(
+  submissionId: number,
+  itemId: number,
+  patch: { resultGrade?: string | null; certNumber?: string | null; allocatedCostCents?: number },
+  db: Db = getDb(),
+): void {
+  const current = db.prepare('SELECT * FROM grading_submission_items WHERE submission_id = ? AND item_id = ?')
+    .get(submissionId, itemId) as { result_grade: string | null; cert_number: string | null; allocated_cost_cents: number } | undefined;
+  if (!current) return;
+  db.prepare(`
+    UPDATE grading_submission_items
+    SET result_grade = @grade, cert_number = @cert, allocated_cost_cents = @cost
+    WHERE submission_id = @submissionId AND item_id = @itemId
+  `).run({
+    submissionId,
+    itemId,
+    grade: patch.resultGrade !== undefined ? patch.resultGrade : current.result_grade,
+    cert: patch.certNumber !== undefined ? patch.certNumber : current.cert_number,
+    cost: patch.allocatedCostCents !== undefined ? patch.allocatedCostCents : current.allocated_cost_cents,
+  });
+}
+
+export function markSubmissionReturned(id: number, returnedOn: IsoDate, db: Db = getDb()): void {
+  db.prepare('UPDATE grading_submissions SET returned_on = ? WHERE id = ?').run(returnedOn, id);
+}
+
+// ---------------------------------------------------------------------------
+// Opening events
+// ---------------------------------------------------------------------------
+
+export function recordOpening(
+  itemId: number,
+  openedOn: IsoDate,
+  allocationMethod: string,
+  notes: string | null,
+  db: Db = getDb(),
+): number {
+  const res = db.prepare(`
+    INSERT INTO opening_events (item_id, opened_on, allocation_method, notes, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(itemId, openedOn, allocationMethod, notes, now());
+  return Number(res.lastInsertRowid);
+}
+
+// ---------------------------------------------------------------------------
+// Compliance
+// ---------------------------------------------------------------------------
+
+export interface ComplianceRow {
+  task_id: string; completed: number; completed_on: string | null;
+  reference: string | null; notes: string | null; not_applicable: number; updated_at: string;
+}
+
+export function complianceStatuses(db: Db = getDb()): ComplianceRow[] {
+  return db.prepare('SELECT * FROM compliance_status').all() as ComplianceRow[];
+}
+
+export function setComplianceStatus(
+  taskId: string,
+  patch: { completed?: boolean; completedOn?: IsoDate | null; reference?: string | null; notes?: string | null; notApplicable?: boolean },
+  db: Db = getDb(),
+): void {
+  const existing = db.prepare('SELECT * FROM compliance_status WHERE task_id = ?').get(taskId) as ComplianceRow | undefined;
+  db.prepare(`
+    INSERT INTO compliance_status (task_id, completed, completed_on, reference, notes, not_applicable, updated_at)
+    VALUES (@taskId, @completed, @completedOn, @reference, @notes, @notApplicable, @updatedAt)
+    ON CONFLICT(task_id) DO UPDATE SET
+      completed = excluded.completed, completed_on = excluded.completed_on,
+      reference = excluded.reference, notes = excluded.notes,
+      not_applicable = excluded.not_applicable, updated_at = excluded.updated_at
+  `).run({
+    taskId,
+    completed: (patch.completed ?? (existing?.completed === 1)) ? 1 : 0,
+    completedOn: patch.completedOn !== undefined ? patch.completedOn : (existing?.completed_on ?? null),
+    reference: patch.reference !== undefined ? patch.reference : (existing?.reference ?? null),
+    notes: patch.notes !== undefined ? patch.notes : (existing?.notes ?? null),
+    notApplicable: (patch.notApplicable ?? (existing?.not_applicable === 1)) ? 1 : 0,
+    updatedAt: now(),
+  });
 }

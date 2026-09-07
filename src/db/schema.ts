@@ -1,199 +1,234 @@
 /**
  * Database schema.
  *
- * One design decision shapes everything here: `price_observations` is
- * APPEND-ONLY. Completed-sale data is not available from eBay's public API and
- * scraping it is prohibited, so the only comps this app will ever own are the
- * ones it records itself, starting from the first scan. Storing only "current
- * state" would make that impossible to reconstruct later, and it cannot be
- * backfilled — so every observed price is written down permanently from day one.
+ * Two principles shape it.
+ *
+ * FIRST: nothing is ever silently overwritten. This is a book of account that
+ * has to stand up years later if a return is examined, so edits and deletions
+ * are written to an audit log with the old values. IRC 6001 requires records
+ * sufficient to establish income and deductions, and "I changed it and can't
+ * remember why" is not that.
+ *
+ * SECOND: money never moves without a trace. A purchase lot's cost is allocated
+ * across items and the allocations must sum back to the lot; an item's basis is
+ * relieved into cost of goods sold when it sells. Every table that holds cents
+ * exists so those chains can be walked and checked.
  */
-
-export const SCHEMA_VERSION = 3;
 
 export const MIGRATIONS: string[] = [
   /* v1 */ `
-  CREATE TABLE IF NOT EXISTS listings (
-    id                    TEXT PRIMARY KEY,
-    source                TEXT NOT NULL,
-    source_item_id        TEXT NOT NULL,
-    title                 TEXT NOT NULL,
-    url                   TEXT NOT NULL,
-    image_url             TEXT,
-    currency              TEXT NOT NULL DEFAULT 'USD',
-    price_cents           INTEGER NOT NULL,
-    shipping_cents        INTEGER,
-    landed_cents          INTEGER NOT NULL,
-    unit_cents            INTEGER NOT NULL,
+  CREATE TABLE IF NOT EXISTS business_profile (
+    id                     INTEGER PRIMARY KEY CHECK (id = 1),
+    business_name          TEXT NOT NULL DEFAULT '',
+    owner_name             TEXT NOT NULL DEFAULT '',
+    entity_type            TEXT NOT NULL DEFAULT 'sole-proprietor',
+    ein                    TEXT,
+    state                  TEXT NOT NULL DEFAULT 'UT',
+    county                 TEXT NOT NULL DEFAULT 'Davis',
+    city                   TEXT NOT NULL DEFAULT '',
+    accounting_method      TEXT NOT NULL DEFAULT 'cash',
+    inventory_method       TEXT NOT NULL DEFAULT 'inventory',
+    started_on             TEXT,
+    filing_status          TEXT NOT NULL DEFAULT 'single',
+    other_income_cents     INTEGER NOT NULL DEFAULT 0,
+    other_withholding_cents INTEGER NOT NULL DEFAULT 0,
+    prior_year_tax_cents   INTEGER,
+    prior_year_agi_cents   INTEGER,
+    home_office_sqft       REAL,
+    home_total_sqft        REAL,
+    updated_at             TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS purchase_lots (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchased_on          TEXT NOT NULL,
+    vendor                TEXT NOT NULL DEFAULT '',
+    channel               TEXT NOT NULL DEFAULT 'other',
+    description           TEXT NOT NULL DEFAULT '',
+    subtotal_cents        INTEGER NOT NULL DEFAULT 0,
+    shipping_cents        INTEGER NOT NULL DEFAULT 0,
+    tax_cents             INTEGER NOT NULL DEFAULT 0,
+    fees_cents            INTEGER NOT NULL DEFAULT 0,
+    payment_method        TEXT,
+    resale_exemption_used INTEGER NOT NULL DEFAULT 0,
+    notes                 TEXT,
+    receipt_path          TEXT,
+    created_at            TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_lots_date ON purchase_lots (purchased_on);
+
+  CREATE TABLE IF NOT EXISTS inventory_items (
+    id                     INTEGER PRIMARY KEY AUTOINCREMENT,
+    lot_id                 INTEGER REFERENCES purchase_lots (id) ON DELETE SET NULL,
+    parent_item_id         INTEGER REFERENCES inventory_items (id) ON DELETE SET NULL,
+    kind                   TEXT NOT NULL DEFAULT 'single',
+    holding_intent         TEXT NOT NULL DEFAULT 'inventory',
+    description            TEXT NOT NULL,
+    category               TEXT,
+    set_name               TEXT,
+    year                   INTEGER,
+    quantity               INTEGER NOT NULL DEFAULT 1,
+    acquired_on            TEXT NOT NULL,
+    basis_cents            INTEGER NOT NULL DEFAULT 0,
+    estimated_value_cents  INTEGER,
+    status                 TEXT NOT NULL DEFAULT 'on-hand',
+    graded_by              TEXT,
+    grade                  TEXT,
+    cert_number            TEXT,
+    location               TEXT,
+    notes                  TEXT,
+    created_at             TEXT NOT NULL,
+    updated_at             TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_items_status  ON inventory_items (status);
+  CREATE INDEX IF NOT EXISTS idx_items_lot     ON inventory_items (lot_id);
+  CREATE INDEX IF NOT EXISTS idx_items_parent  ON inventory_items (parent_item_id);
+  CREATE INDEX IF NOT EXISTS idx_items_intent  ON inventory_items (holding_intent);
+  CREATE INDEX IF NOT EXISTS idx_items_acquired ON inventory_items (acquired_on);
+
+  CREATE TABLE IF NOT EXISTS opening_events (
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_id           INTEGER NOT NULL REFERENCES inventory_items (id) ON DELETE CASCADE,
+    opened_on         TEXT NOT NULL,
+    allocation_method TEXT NOT NULL DEFAULT 'relative-fmv',
+    notes             TEXT,
+    created_at        TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS grading_submissions (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    grader              TEXT NOT NULL,
+    service_level       TEXT,
+    submitted_on        TEXT NOT NULL,
+    returned_on         TEXT,
+    submission_number   TEXT,
+    fee_cents           INTEGER NOT NULL DEFAULT 0,
+    shipping_to_cents   INTEGER NOT NULL DEFAULT 0,
+    shipping_back_cents INTEGER NOT NULL DEFAULT 0,
+    insurance_cents     INTEGER NOT NULL DEFAULT 0,
+    notes               TEXT,
+    created_at          TEXT NOT NULL
+  );
+
+  CREATE TABLE IF NOT EXISTS grading_submission_items (
+    submission_id         INTEGER NOT NULL REFERENCES grading_submissions (id) ON DELETE CASCADE,
+    item_id               INTEGER NOT NULL REFERENCES inventory_items (id) ON DELETE CASCADE,
+    result_grade          TEXT,
+    cert_number           TEXT,
+    allocated_cost_cents  INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (submission_id, item_id)
+  );
+
+  CREATE TABLE IF NOT EXISTS sales (
+    id                             INTEGER PRIMARY KEY AUTOINCREMENT,
+    sold_on                        TEXT NOT NULL,
+    channel                        TEXT NOT NULL DEFAULT 'other',
+    order_ref                      TEXT,
+    buyer_state                    TEXT,
+    gross_cents                    INTEGER NOT NULL DEFAULT 0,
+    shipping_charged_cents         INTEGER NOT NULL DEFAULT 0,
+    sales_tax_collected_cents      INTEGER NOT NULL DEFAULT 0,
+    sales_tax_remitted_by_platform INTEGER NOT NULL DEFAULT 1,
+    platform_fee_cents             INTEGER NOT NULL DEFAULT 0,
+    payment_processing_fee_cents   INTEGER NOT NULL DEFAULT 0,
+    shipping_cost_cents            INTEGER NOT NULL DEFAULT 0,
+    other_fee_cents                INTEGER NOT NULL DEFAULT 0,
+    refunded_cents                 INTEGER NOT NULL DEFAULT 0,
+    notes                          TEXT,
+    created_at                     TEXT NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_sales_date    ON sales (sold_on);
+  CREATE INDEX IF NOT EXISTS idx_sales_channel ON sales (channel);
+
+  CREATE TABLE IF NOT EXISTS sale_lines (
+    sale_id               INTEGER NOT NULL REFERENCES sales (id) ON DELETE CASCADE,
+    item_id               INTEGER NOT NULL REFERENCES inventory_items (id) ON DELETE RESTRICT,
     quantity              INTEGER NOT NULL DEFAULT 1,
-    listing_type          TEXT NOT NULL,
-    bid_count             INTEGER,
-    ends_at               TEXT,
-    condition             TEXT,
-    seller_name           TEXT,
-    seller_feedback_pct   REAL,
-    seller_feedback_count INTEGER,
-    location_country      TEXT,
-
-    product_key           TEXT,
-    category              TEXT,
-    product_type          TEXT,
-    sealed                INTEGER NOT NULL DEFAULT 0,
-    graded                INTEGER NOT NULL DEFAULT 0,
-    grader                TEXT,
-    grade                 REAL,
-    set_slug              TEXT,
-    set_name              TEXT,
-    year                  INTEGER,
-    parse_json            TEXT NOT NULL,
-
-    benchmark_kind        TEXT NOT NULL DEFAULT 'none',
-    benchmark_cents       INTEGER,
-    benchmark_label       TEXT,
-    benchmark_source      TEXT,
-    discount_pct          REAL,
-    label                 TEXT NOT NULL DEFAULT 'unscored',
-    under_msrp            INTEGER NOT NULL DEFAULT 0,
-    confidence            REAL NOT NULL DEFAULT 0,
-    score                 REAL NOT NULL DEFAULT 0,
-    notes_json            TEXT NOT NULL DEFAULT '[]',
-
-    first_seen_at         TEXT NOT NULL,
-    last_seen_at          TEXT NOT NULL,
-    -- Set when a listing we were tracking stopped appearing in results.
-    gone_at               TEXT,
-    watch_id              INTEGER,
-    raw_json              TEXT
+    allocated_gross_cents INTEGER NOT NULL DEFAULT 0,
+    cogs_cents            INTEGER NOT NULL DEFAULT 0,
+    PRIMARY KEY (sale_id, item_id)
   );
 
-  CREATE INDEX IF NOT EXISTS idx_listings_score       ON listings (score DESC);
-  CREATE INDEX IF NOT EXISTS idx_listings_label       ON listings (label, score DESC);
-  CREATE INDEX IF NOT EXISTS idx_listings_under_msrp  ON listings (under_msrp, score DESC);
-  CREATE INDEX IF NOT EXISTS idx_listings_product_key ON listings (product_key);
-  CREATE INDEX IF NOT EXISTS idx_listings_last_seen   ON listings (last_seen_at);
-  CREATE INDEX IF NOT EXISTS idx_listings_watch       ON listings (watch_id, score DESC);
-  CREATE INDEX IF NOT EXISTS idx_listings_ends_at     ON listings (ends_at);
-
-  -- Append-only. Never UPDATE or DELETE rows here.
-  CREATE TABLE IF NOT EXISTS price_observations (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_key  TEXT NOT NULL,
-    observed_at  TEXT NOT NULL,
-    unit_cents   INTEGER NOT NULL,
-    kind         TEXT NOT NULL CHECK (kind IN ('ask','sold','sold-inferred')),
-    source       TEXT NOT NULL,
-    listing_id   TEXT
+  CREATE TABLE IF NOT EXISTS expenses (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    incurred_on           TEXT NOT NULL,
+    account_key           TEXT NOT NULL,
+    vendor                TEXT,
+    description           TEXT NOT NULL DEFAULT '',
+    amount_cents          INTEGER NOT NULL,
+    business_use_percent  REAL NOT NULL DEFAULT 100,
+    payment_method        TEXT,
+    receipt_path          TEXT,
+    notes                 TEXT,
+    created_at            TEXT NOT NULL
   );
-  CREATE INDEX IF NOT EXISTS idx_obs_key_time ON price_observations (product_key, observed_at DESC);
-  -- One ask per listing per day is plenty; this keeps a hourly poller from
-  -- writing the same price 24 times and skewing the distribution.
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_dedupe
-    ON price_observations (listing_id, kind, substr(observed_at, 1, 10))
-    WHERE listing_id IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_expenses_date    ON expenses (incurred_on);
+  CREATE INDEX IF NOT EXISTS idx_expenses_account ON expenses (account_key);
 
-  CREATE TABLE IF NOT EXISTS baselines (
-    product_key TEXT PRIMARY KEY,
-    value_cents INTEGER NOT NULL,
-    kind        TEXT NOT NULL,
-    n           INTEGER NOT NULL,
-    dispersion  REAL NOT NULL,
-    confidence  REAL NOT NULL,
-    computed_at TEXT NOT NULL
+  CREATE TABLE IF NOT EXISTS mileage_trips (
+    id             INTEGER PRIMARY KEY AUTOINCREMENT,
+    driven_on      TEXT NOT NULL,
+    purpose        TEXT NOT NULL,
+    from_location  TEXT,
+    to_location    TEXT,
+    miles          REAL NOT NULL,
+    round_trip     INTEGER NOT NULL DEFAULT 0,
+    odometer_start REAL,
+    odometer_end   REAL,
+    notes          TEXT,
+    created_at     TEXT NOT NULL
   );
+  CREATE INDEX IF NOT EXISTS idx_mileage_date ON mileage_trips (driven_on);
 
-  CREATE TABLE IF NOT EXISTS watches (
-    id               INTEGER PRIMARY KEY AUTOINCREMENT,
-    name             TEXT NOT NULL,
-    query            TEXT NOT NULL,
-    sources_json     TEXT NOT NULL DEFAULT '[]',
-    category         TEXT,
-    product_type     TEXT,
-    min_price_cents  INTEGER,
-    max_price_cents  INTEGER,
-    min_discount_pct REAL NOT NULL DEFAULT 0.1,
-    sealed_only      INTEGER NOT NULL DEFAULT 0,
-    graded_only      INTEGER NOT NULL DEFAULT 0,
-    exclude_lots     INTEGER NOT NULL DEFAULT 1,
-    enabled          INTEGER NOT NULL DEFAULT 1,
-    interval_minutes INTEGER NOT NULL DEFAULT 30,
-    last_run_at      TEXT,
-    last_error       TEXT,
-    created_at       TEXT NOT NULL
+  CREATE TABLE IF NOT EXISTS payouts (
+    id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+    channel              TEXT NOT NULL,
+    received_on          TEXT NOT NULL,
+    period_start         TEXT,
+    period_end           TEXT,
+    gross_cents          INTEGER NOT NULL DEFAULT 0,
+    fees_cents           INTEGER NOT NULL DEFAULT 0,
+    refunds_cents        INTEGER NOT NULL DEFAULT 0,
+    shipping_labels_cents INTEGER NOT NULL DEFAULT 0,
+    sales_tax_cents      INTEGER NOT NULL DEFAULT 0,
+    net_cents            INTEGER NOT NULL DEFAULT 0,
+    reference            TEXT,
+    notes                TEXT,
+    created_at           TEXT NOT NULL
   );
+  CREATE INDEX IF NOT EXISTS idx_payouts_date ON payouts (received_on);
 
-  CREATE TABLE IF NOT EXISTS alerts (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    listing_id   TEXT NOT NULL,
-    watch_id     INTEGER,
-    label        TEXT NOT NULL,
-    discount_pct REAL,
-    created_at   TEXT NOT NULL,
-    notified_at  TEXT,
-    dismissed    INTEGER NOT NULL DEFAULT 0,
-    UNIQUE (listing_id, label)
-  );
-  CREATE INDEX IF NOT EXISTS idx_alerts_created ON alerts (created_at DESC);
-
-  -- User edits to the shipped MSRP catalog, kept separate so regenerating
-  -- catalog/msrp.json never destroys someone's corrections.
-  CREATE TABLE IF NOT EXISTS msrp_overrides (
-    entry_id     TEXT PRIMARY KEY,
-    msrp_cents   INTEGER,
-    confidence   TEXT,
-    note         TEXT,
-    deleted      INTEGER NOT NULL DEFAULT 0,
-    payload_json TEXT,
-    updated_at   TEXT NOT NULL
+  CREATE TABLE IF NOT EXISTS compliance_status (
+    task_id        TEXT PRIMARY KEY,
+    completed      INTEGER NOT NULL DEFAULT 0,
+    completed_on   TEXT,
+    reference      TEXT,
+    notes          TEXT,
+    not_applicable INTEGER NOT NULL DEFAULT 0,
+    updated_at     TEXT NOT NULL
   );
 
-  CREATE TABLE IF NOT EXISTS scan_runs (
-    id            INTEGER PRIMARY KEY AUTOINCREMENT,
-    watch_id      INTEGER,
-    source        TEXT NOT NULL,
-    started_at    TEXT NOT NULL,
-    finished_at   TEXT,
-    listings_seen INTEGER NOT NULL DEFAULT 0,
-    new_listings  INTEGER NOT NULL DEFAULT 0,
-    deals_found   INTEGER NOT NULL DEFAULT 0,
-    calls_used    INTEGER NOT NULL DEFAULT 0,
-    warnings_json TEXT NOT NULL DEFAULT '[]',
-    error         TEXT
+  -- Every change to a money-bearing row, so the books can be reconstructed.
+  CREATE TABLE IF NOT EXISTS audit_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    occurred_at TEXT NOT NULL,
+    table_name  TEXT NOT NULL,
+    row_id      TEXT NOT NULL,
+    action      TEXT NOT NULL CHECK (action IN ('insert','update','delete')),
+    before_json TEXT,
+    after_json  TEXT,
+    reason      TEXT
   );
-  CREATE INDEX IF NOT EXISTS idx_scan_runs_started ON scan_runs (started_at DESC);
-  `,
+  CREATE INDEX IF NOT EXISTS idx_audit_time  ON audit_log (occurred_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_audit_row   ON audit_log (table_name, row_id);
 
-  /* v2 */ `
-  -- Market values fetched from a price-data provider (TCGplayer via
-  -- pokemontcg.io, PriceCharting, ...). Kept apart from price_observations
-  -- because these are authoritative single figures, not individual data
-  -- points, and one of them outweighs a hundred asking prices.
-  CREATE TABLE IF NOT EXISTS provider_comps (
-    product_key  TEXT NOT NULL,
-    provider     TEXT NOT NULL,
-    value_cents  INTEGER NOT NULL,
-    -- What the provider says the figure represents, e.g. 'tcgplayer-market'.
-    basis        TEXT NOT NULL,
-    sample_size  INTEGER,
-    fetched_at   TEXT NOT NULL,
-    detail_json  TEXT,
-    PRIMARY KEY (product_key, provider)
+  -- Which tax year's figures have been reviewed against their sources.
+  CREATE TABLE IF NOT EXISTS tax_year_review (
+    year         INTEGER PRIMARY KEY,
+    reviewed     INTEGER NOT NULL DEFAULT 0,
+    reviewed_on  TEXT,
+    reviewed_by  TEXT,
+    notes        TEXT
   );
-  CREATE INDEX IF NOT EXISTS idx_provider_comps_fetched ON provider_comps (fetched_at);
-  `,
-
-  /* v3 */ `
-  -- Who listed it, so one seller with twenty identical listings cannot define
-  -- the market for a product.
-  ALTER TABLE price_observations ADD COLUMN seller_id TEXT;
-
-  -- Tighten sampling. The old index allowed one observation per listing per
-  -- DAY, so a listing that sat unsold for two months contributed sixty
-  -- "independent" data points and single-handedly set the baseline. Bucketing
-  -- by week cuts that by seven, and the ingest layer caps each listing's
-  -- lifetime contribution on top.
-  DROP INDEX IF EXISTS idx_obs_dedupe;
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_obs_dedupe_week
-    ON price_observations (listing_id, kind, strftime('%Y-%W', observed_at))
-    WHERE listing_id IS NOT NULL;
   `,
 ];

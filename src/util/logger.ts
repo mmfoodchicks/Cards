@@ -1,4 +1,4 @@
-/** Minimal levelled logger. Structured enough to grep, small enough to read. */
+/** Minimal levelled logger. */
 
 import { config } from '../config.js';
 
