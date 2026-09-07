@@ -26,6 +26,7 @@ import { selfEmploymentTax, setAsideGuidance } from '../tax/selfEmployment.js';
 import { availableYears, figureHealth, taxYear } from '../tax/registry.js';
 import { ACCOUNTS, SCHEDULE_C_LINES, selectableAccounts } from '../tax/scheduleC.js';
 import { complianceChecklist } from '../compliance/checklist.js';
+import { guidanceFor } from '../compliance/guidance.js';
 import { upcomingDeadlines } from '../compliance/calendar.js';
 import { logger } from '../util/logger.js';
 
@@ -547,6 +548,10 @@ api.get('/export/:year/:file', handle((req, res) => {
 // ---------------------------------------------------------------------------
 // Compliance
 // ---------------------------------------------------------------------------
+
+api.get('/guidance', handle((_req, res) => {
+  res.json({ guidance: guidanceFor() });
+}));
 
 api.get('/compliance', (_req, res) => {
   const profile = getProfile();

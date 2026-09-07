@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, formatDate, money, type DeadlineItem, type EstimatedTax, type Health, type ScheduleC } from '../lib/api';
+import { api, formatDate, money, type DeadlineItem, type EstimatedTax, type Guidance, type Health, type ScheduleC } from '../lib/api';
 import { Banner, MoneyStat, Spinner, Stat } from '../components/ui';
 
 /**
@@ -13,17 +13,19 @@ export function Dashboard({ year, onNavigate }: { year: number; onNavigate: (tab
   const [sc, setSc] = useState<ScheduleC | null>(null);
   const [est, setEst] = useState<EstimatedTax | null>(null);
   const [deadlines, setDeadlines] = useState<DeadlineItem[]>([]);
+  const [guidance, setGuidance] = useState<Guidance[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.health(), api.scheduleC(year), api.estimatedTax(year), api.compliance()])
-      .then(([h, s, e, c]) => {
+    Promise.all([api.health(), api.scheduleC(year), api.estimatedTax(year), api.compliance(), api.guidance()])
+      .then(([h, s, e, c, g]) => {
         if (cancelled) return;
         setHealth(h);
         setSc(s);
         setEst(e);
         setDeadlines(c.deadlines.filter((d) => d.urgency !== 'later'));
+        setGuidance(g.guidance);
       })
       .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : 'Could not load'));
     return () => { cancelled = true; };
@@ -66,6 +68,29 @@ export function Dashboard({ year, onNavigate }: { year: number; onNavigate: (tab
             </div>
           )}
         </Banner>
+      ))}
+
+      {guidance.map((g) => (
+        <div className="section" key={g.id}>
+          <div className={`banner ${g.severity === 'caution' ? 'warn' : g.severity === 'opportunity' ? 'good' : ''}`}>
+            <strong>{g.title}</strong>
+            {g.worthCents !== undefined && g.worthCents > 0 && (
+              <span style={{ marginLeft: 8 }}>Worth about {money(g.worthCents)}.</span>
+            )}
+            <div style={{ marginTop: 6, opacity: 0.85 }}>{g.because}</div>
+            {g.body.map((line) => (
+              <p key={line} style={{ margin: '8px 0 0' }}>{line}</p>
+            ))}
+            {g.steps && g.steps.length > 0 && (
+              <>
+                <div style={{ marginTop: 10, fontWeight: 700 }}>What to do</div>
+                <ol style={{ margin: '4px 0 0', paddingLeft: 20 }}>
+                  {g.steps.map((step) => <li key={step} style={{ marginBottom: 3 }}>{step}</li>)}
+                </ol>
+              </>
+            )}
+          </div>
+        </div>
       ))}
 
       <div className="section">

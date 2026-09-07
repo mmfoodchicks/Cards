@@ -158,6 +158,16 @@ export interface EstimatedTax {
   figuresNeedingCheck: Array<{ key: string; label: string; source: string; note: string | null }>;
 }
 
+export interface Guidance {
+  id: string;
+  severity: 'opportunity' | 'caution' | 'information';
+  title: string;
+  because: string;
+  body: string[];
+  worthCents?: number;
+  steps?: string[];
+}
+
 export interface ComplianceTask {
   id: string;
   jurisdiction: string;
@@ -289,6 +299,7 @@ export const api = {
       '/reports/investment-schedule',
     ),
 
+  guidance: () => request<{ guidance: Guidance[] }>('/guidance'),
   compliance: () => request<{ tasks: ComplianceTask[]; deadlines: DeadlineItem[] }>('/compliance'),
   setCompliance: (taskId: string, patch: Record<string, unknown>) =>
     request<unknown>(`/compliance/${taskId}`, { method: 'PUT', body: JSON.stringify(patch) }),
