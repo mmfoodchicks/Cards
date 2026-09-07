@@ -15,7 +15,9 @@ import type { Db } from '../db/index.js';
 import { getDb } from '../db/index.js';
 import { getProfile } from '../db/repos.js';
 import { isLongTerm } from '../reports/capitalGains.js';
-import type { IsoDate } from '../domain/types.js';
+import { approachingThreshold, reporting1099k } from '../tax/reporting1099k.js';
+import { taxYear } from '../tax/registry.js';
+import type { IsoDate, SalesChannel } from '../domain/types.js';
 
 export type GuidanceSeverity = 'opportunity' | 'caution' | 'information';
 
@@ -48,6 +50,7 @@ export function guidanceFor(input: GuidanceInput = {}): Guidance[] {
   out.push(...nearLongTermGuidance(db, todayIso));
   out.push(...yearEndInventoryGuidance(db, todayIso));
   out.push(...zeroBasisGuidance(db));
+  out.push(...marketplaceReportingGuidance(db, todayIso));
 
   return out;
 }
@@ -227,6 +230,146 @@ function zeroBasisGuidance(db: Db): Guidance[] {
       steps: ['Open Inventory and filter to what is on hand.', 'Check anything showing a zero cost.'],
     },
   ];
+}
+
+/**
+ * What the platforms are about to tell the IRS about you.
+ *
+ * Two failure modes, opposite in shape and both expensive.
+ *
+ * The first is assuming no form means no tax. It is the single most common
+ * misconception in online reselling, and the retroactive repeal of the $600
+ * rule made it worse by convincing people something changed about taxability.
+ * Nothing did. The threshold governs whether eBay must file a form; the income
+ * was always reportable.
+ *
+ * The second is being surprised in January by a form showing thousands more
+ * than you banked, and having no fee or refund records to bridge the gap.
+ * Knowing a form is coming while there is still time to keep those records is
+ * the whole point of firing this early.
+ */
+function marketplaceReportingGuidance(db: Db, today: IsoDate): Guidance[] {
+  const year = Number(today.slice(0, 4));
+  const figures = taxYear(year);
+  if (!figures) return [];
+
+  const sales = db.prepare(`
+    SELECT channel,
+           gross_cents                AS grossCents,
+           shipping_charged_cents     AS shippingChargedCents,
+           sales_tax_collected_cents  AS salesTaxCollectedCents,
+           refunded_cents             AS refundedCents
+    FROM sales
+    WHERE sold_on BETWEEN @from AND @to
+  `).all({ from: `${year}-01-01`, to: `${year}-12-31` }) as Array<{
+    channel: string;
+    grossCents: number;
+    shippingChargedCents: number;
+    salesTaxCollectedCents: number;
+    refundedCents: number;
+  }>;
+
+  if (sales.length === 0) return [];
+
+  const summary = reporting1099k(
+    sales.map((s) => ({
+      channel: s.channel as SalesChannel,
+      grossCents: s.grossCents,
+      shippingChargedCents: s.shippingChargedCents,
+      salesTaxCollectedCents: s.salesTaxCollectedCents,
+      refundedCents: s.refundedCents,
+    })),
+    figures,
+  );
+
+  const out: Guidance[] = [];
+
+  const withForms = summary.channels.filter((c) => c.formExpected);
+  if (withForms.length > 0) {
+    const gap = sum(withForms.map((c) => c.reconcilingCents));
+    out.push({
+      id: 'reporting-1099k-expected',
+      severity: 'caution',
+      title: `${withForms.length} platform${withForms.length === 1 ? '' : 's'} will send you a 1099-K`,
+      because:
+        `${withForms.map((c) => c.label).join(', ')} passed both tests — over $20,000 settled and over ` +
+        '200 transactions.',
+      body: [
+        `The forms will total about ${fmt(summary.expectedOnFormsCents)}. That is gross: it includes shipping ` +
+          'buyers paid and sales tax the platform collected, and it is not reduced by fees or refunds.',
+        `Roughly ${fmt(gap)} of that is sales tax the platform already sent to the state on your behalf. It is ` +
+          'not your income, but it IS on the form, so the return has to show where it went.',
+        'Start Schedule C line 1 from the gross figure and deduct down. Reporting the net payout instead is the ' +
+          'mistake that makes a return disagree with a form the IRS already holds.',
+      ],
+      steps: [
+        'Keep the annual fee and refund statement from each platform.',
+        'Run Reports → Schedule C worksheet and check line 1 against the sum of the forms.',
+        'Reconcile each form in January before filing, not after a notice arrives.',
+      ],
+    });
+  }
+
+  const near = approachingThreshold(summary, figures);
+  if (near.length > 0) {
+    out.push({
+      id: 'reporting-1099k-approaching',
+      severity: 'information',
+      title: `${near.map((p) => p.channel.label).join(', ')} closing in on a 1099-K`,
+      because:
+        near
+          .map(
+            (p) =>
+              `${p.channel.label}: ${fmt(p.channel.reportableGrossCents)} across ` +
+              `${p.channel.transactionCount} sales.`,
+          )
+          .join(' '),
+      body: [
+        'A form needs BOTH more than $20,000 and more than 200 transactions on that one platform. Crossing ' +
+          'only one of them means no form.',
+        'This changes nothing about what you owe. It changes how closely the return is matched against ' +
+          'third-party data, which is a reason to have the fee and refund records straight now rather than in April.',
+      ],
+    });
+  }
+
+  if (summary.belowThresholdCents > 0 && withForms.length === 0) {
+    out.push({
+      id: 'reporting-1099k-below',
+      severity: 'caution',
+      title: 'No 1099-K is coming, and the income is taxable anyway',
+      because: `${fmt(summary.belowThresholdCents)} of sales this year sits below every reporting threshold.`,
+      body: [
+        'The IRS puts it plainly: all income, no matter the amount, is taxable unless the law says it is not — ' +
+          'even if you do not get a Form 1099-K.',
+        'The repeal of the $600 rule changed which platforms must file. It changed nothing about what you must report.',
+        'Your own records are the only record of this income, which is exactly why they have to be right.',
+      ],
+    });
+  }
+
+  const inPerson = summary.channels.filter((c) => c.basis === 'self-reported' && c.transactionCount > 0);
+  if (inPerson.length > 0) {
+    out.push({
+      id: 'reporting-1099k-card-reader',
+      severity: 'information',
+      title: 'Card-reader sales at shows have no threshold at all',
+      because: `You recorded ${sum(inPerson.map((c) => c.transactionCount))} in-person sale(s) this year.`,
+      body: [
+        'Cash is reported by nobody. But a payment card transaction is reported from the first cent — there is ' +
+          'no $20,000 floor and no transaction count for it.',
+        'So a single $40 swipe on a Square reader at a Layton show puts you on a 1099-K, even if everything ' +
+          'else you did all year was cash.',
+        'If you use a reader, expect a form from the processor and reconcile it like any other.',
+      ],
+    });
+  }
+
+  return out;
+}
+
+function sum(values: readonly number[]): number {
+  return values.reduce((a, b) => a + b, 0);
 }
 
 function fmt(cents: Cents): string {

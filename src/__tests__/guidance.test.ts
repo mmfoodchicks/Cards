@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { openMemoryDb, type Db } from '../db/index.js';
-import { updateProfile } from '../db/repos.js';
+import { createSale, updateProfile } from '../db/repos.js';
 import { guidanceFor } from '../compliance/guidance.js';
 import { recordPurchase } from '../ledger/purchases.js';
 
@@ -132,5 +132,61 @@ describe('zero-basis stock', () => {
     const zero = guidance.find((g) => g.id === 'zero-basis')!;
     expect(zero).toBeDefined();
     expect(zero.body.join(' ')).toMatch(/right answer if they genuinely cost nothing/i);
+  });
+});
+
+
+describe('marketplace reporting', () => {
+  const sale = (over: Record<string, unknown> = {}) => ({
+    soldOn: '2026-05-01' as const, channel: 'ebay' as const, orderRef: null, buyerState: 'UT',
+    grossCents: 10000, shippingChargedCents: 500, salesTaxCollectedCents: 715,
+    salesTaxRemittedByPlatform: true, platformFeeCents: 1300, paymentProcessingFeeCents: 0,
+    shippingCostCents: 400, otherFeeCents: 0, refundedCents: 0, notes: null, ...over,
+  });
+
+  it('says the income is taxable when no form is coming', () => {
+    for (let i = 0; i < 5; i += 1) createSale(sale(), [], db);
+
+    const g = guidanceFor({ today: new Date('2026-09-07T00:00:00Z'), db })
+      .find((x) => x.id === 'reporting-1099k-below')!;
+    expect(g).toBeDefined();
+    expect(g.body.join(' ')).toMatch(/all income, no matter the amount, is taxable/i);
+    expect(g.body.join(' ')).toMatch(/\$600 rule changed which platforms must file/i);
+  });
+
+  it('warns about the gross figure once both thresholds are passed', () => {
+    // 201 sales at $120 of goods clears $20,000 and 200 transactions.
+    for (let i = 0; i < 201; i += 1) createSale(sale({ grossCents: 12000 }), [], db);
+
+    const all = guidanceFor({ today: new Date('2026-09-07T00:00:00Z'), db });
+    const g = all.find((x) => x.id === 'reporting-1099k-expected')!;
+    expect(g).toBeDefined();
+    expect(g.body.join(' ')).toMatch(/includes shipping buyers paid and sales tax/i);
+    // The "no form is coming" note must NOT also fire.
+    expect(all.find((x) => x.id === 'reporting-1099k-below')).toBeUndefined();
+  });
+
+  it('gives notice while a platform is still approaching the threshold', () => {
+    for (let i = 0; i < 170; i += 1) {
+      createSale(sale({ grossCents: 12000 }), [], db);
+    }
+    const g = guidanceFor({ today: new Date('2026-09-07T00:00:00Z'), db })
+      .find((x) => x.id === 'reporting-1099k-approaching')!;
+    expect(g).toBeDefined();
+    expect(g.because).toMatch(/eBay/);
+  });
+
+  it('flags card readers at shows, which have no threshold', () => {
+    createSale(sale({ channel: 'card-show', grossCents: 4000, salesTaxCollectedCents: 286 }), [], db);
+
+    const g = guidanceFor({ today: new Date('2026-09-07T00:00:00Z'), db })
+      .find((x) => x.id === 'reporting-1099k-card-reader')!;
+    expect(g).toBeDefined();
+    expect(g.body.join(' ')).toMatch(/first cent/i);
+  });
+
+  it('stays quiet when there are no sales at all', () => {
+    const ids = guidanceFor({ today: new Date('2026-09-07T00:00:00Z'), db }).map((g) => g.id);
+    expect(ids.filter((id) => id.startsWith('reporting-1099k'))).toEqual([]);
   });
 });

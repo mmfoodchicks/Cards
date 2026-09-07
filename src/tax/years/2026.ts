@@ -184,6 +184,54 @@ export const FIGURES_2026: TaxYearFigures = {
         'simplified inventory treatment and exemption from uniform capitalisation both apply.',
     }),
 
+    // --- Marketplace reporting --------------------------------------------
+    // These decide whether a PLATFORM sends you a form. They decide nothing
+    // about whether the income is taxable. The IRS states it plainly: "All
+    // income, no matter the amount, is taxable unless the tax law says it
+    // isn't - even if you don't get a Form 1099-K."
+    'reporting.1099k.dollarThreshold': figure({
+      key: 'reporting.1099k.dollarThreshold',
+      label: 'Form 1099-K threshold, gross payments through a marketplace',
+      value: 2000000,
+      year: 2026,
+      kind: 'statutory',
+      authority: 'IRC 6050W(e), as restored by the One, Big, Beautiful Bill Act',
+      source: 'https://www.irs.gov/newsroom/irs-issues-faqs-on-form-1099-k-threshold-under-the-one-big-beautiful-bill-dollar-limit-reverts-to-20000',
+      confidence: 'verified',
+      note:
+        '$20,000. The OBBB Act retroactively restored the pre-2021 threshold, undoing the American Rescue ' +
+        'Plan Act change that would have dropped it to $600. Confirmed in IR-2025-107 and Fact Sheet 2025-08 ' +
+        '(23 October 2025). This threshold is a floor for the PLATFORM, not for you.',
+    }),
+    'reporting.1099k.transactionThreshold': figure({
+      key: 'reporting.1099k.transactionThreshold',
+      label: 'Form 1099-K threshold, number of marketplace transactions',
+      value: 200,
+      year: 2026,
+      kind: 'statutory',
+      authority: 'IRC 6050W(e), as restored by the One, Big, Beautiful Bill Act',
+      source: 'https://www.irs.gov/newsroom/irs-issues-faqs-on-form-1099-k-threshold-under-the-one-big-beautiful-bill-dollar-limit-reverts-to-20000',
+      confidence: 'verified',
+      note:
+        'More than 200 transactions. Both tests must be met - over $20,000 AND over 200 transactions - before ' +
+        'a third party settlement organisation is required to file. Some platforms file anyway, and some ' +
+        'states set a lower threshold of their own, so expect forms below this.',
+    }),
+    'reporting.1099k.paymentCardThreshold': figure({
+      key: 'reporting.1099k.paymentCardThreshold',
+      label: 'Form 1099-K threshold, payment card transactions',
+      value: 0,
+      year: 2026,
+      kind: 'statutory',
+      authority: 'IRC 6050W(a)(1)',
+      source: 'https://www.irs.gov/newsroom/form-1099-k-faqs-general-information',
+      confidence: 'verified',
+      note:
+        'There is none. "There is no threshold amount that must be met to receive a Form 1099-K due to ' +
+        'payments received through a payment card transaction." Card-reader sales at a show are reported ' +
+        'from the first cent, so a Square or Stripe reader puts you in the reporting system immediately.',
+    }),
+
     // --- Figures still to confirm -----------------------------------------
     'meals.deductiblePercent': figure({
       key: 'meals.deductiblePercent',

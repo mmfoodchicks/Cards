@@ -180,7 +180,7 @@ after.
 | Estimated tax, instalment 2 | 1040-ES | 15 June |
 | Estimated tax, instalment 3 | 1040-ES | 15 September |
 | Estimated tax, instalment 4 | 1040-ES | 15 January following |
-| 1099-K arrives from platforms | 1099-K | Late January |
+| 1099-K arrives from platforms | 1099-K | 31 January |
 | Annual return | 1040, Sch C, Sch SE | 15 April following |
 
 Dates shift to the next business day when they fall on a weekend or holiday.
@@ -192,11 +192,54 @@ and pay the balance with it.
 
 ---
 
-## Reconciling a 1099-K
+## Form 1099-K
+
+### The threshold, and what it does not mean
+
+The threshold moved twice in five years and the confusion is still doing damage.
+
+The American Rescue Plan Act of 2021 dropped it to **$600** with no transaction
+count. The IRS delayed enforcement three times and never applied it. Then the
+One, Big, Beautiful Bill Act **retroactively repealed** that change and put the
+pre-2021 rule back:
+
+> A third party settlement organisation must file a Form 1099-K only when the
+> gross amount of reportable payment transactions **exceeds $20,000** *and* the
+> number of transactions **exceeds 200**.
+
+Both tests. Not either. Confirmed in [IR-2025-107 and Fact Sheet 2025-08][faq]
+(23 October 2025).
+
+Three consequences, and every one of them catches people out.
+
+**1. The threshold is the platform's, not yours.** It decides whether eBay has
+to mail a form. It decides nothing whatsoever about whether the money is
+taxable. The IRS states it directly:
+
+> All income, no matter the amount, is taxable unless the tax law says it
+> isn't — even if you don't get a Form 1099-K.
+
+Selling $8,000 of cards and receiving no form is $8,000 of reportable income.
+
+**2. The threshold is per platform.** $15,000 on eBay and $15,000 on Whatnot is
+$30,000 of income and zero forms. The income is no less reportable for it.
+
+**3. Card readers have no threshold at all.** Payment card transactions are
+reported under a different paragraph of the same code section, and that one has
+no floor:
+
+> There is no threshold amount that must be met to receive a Form 1099-K due to
+> payments received through a payment card transaction.
+
+One $40 payment on a Square reader at a Layton show puts you on a 1099-K, even
+if everything else you did all year was cash. This is the most common surprise
+for a seller whose online volume is comfortably under $20,000.
+
+### Reconciling the form
 
 Platforms report **gross** payments — including sales tax they collected and
 shipping the buyer paid, and **before** their fees and any refunds. That figure
-will be higher than what you banked, sometimes by a lot.
+will be higher than what you banked, sometimes by 20%.
 
 The return has to reconcile to it:
 
@@ -204,12 +247,18 @@ The return has to reconcile to it:
 - Deduct the platform's fees on line 10.
 - Deduct the postage you bought.
 - Put refunds on line 2 as returns and allowances.
+- Sales tax the platform collected and remitted is on the form but is not your
+  income; it must still be accounted for, not silently dropped.
 
 Do not report the net payout as your income. That is the single most common
 mistake, and it makes your return disagree with a form the IRS already has.
 
-Note that **card-reader sales have no 1099-K threshold at all** — payment card
-transactions are reported from the first dollar.
+**In the app:** Reports → 1099-K shows what each platform is expected to report,
+how far each is from the thresholds, and the gap between the form's gross and
+Schedule C line 1. It warns while there is still time to keep the fee and refund
+records, rather than in January when they have to be reconstructed.
+
+[faq]: https://www.irs.gov/newsroom/irs-issues-faqs-on-form-1099-k-threshold-under-the-one-big-beautiful-bill-dollar-limit-reverts-to-20000
 
 ---
 

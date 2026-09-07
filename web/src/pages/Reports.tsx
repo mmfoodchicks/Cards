@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, formatDate, money, type CapitalGains, type ScheduleC } from '../lib/api';
+import { api, formatDate, money, type CapitalGains, type ChannelReporting, type Reporting1099k, type ScheduleC } from '../lib/api';
 import { Banner, MoneyStat, Spinner, Stat } from '../components/ui';
 
 /** The year-end package: what goes on the return, line by line. */
@@ -7,14 +7,21 @@ export function Reports({ year }: { year: number }) {
   const [sc, setSc] = useState<ScheduleC | null>(null);
   const [cg, setCg] = useState<CapitalGains | null>(null);
   const [schedule, setSchedule] = useState<Awaited<ReturnType<typeof api.investmentSchedule>> | null>(null);
+  const [k1099, setK1099] = useState<Reporting1099k | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([api.scheduleC(year), api.capitalGains(year), api.investmentSchedule()])
-      .then(([s, c, i]) => {
+    Promise.all([
+      api.scheduleC(year),
+      api.capitalGains(year),
+      api.investmentSchedule(),
+      // A missing tax year is not a reason to fail the whole page.
+      api.reporting1099k(year).catch(() => null),
+    ])
+      .then(([s, c, i, k]) => {
         if (cancelled) return;
-        setSc(s); setCg(c); setSchedule(i);
+        setSc(s); setCg(c); setSchedule(i); setK1099(k);
       })
       .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : 'Could not load'));
     return () => { cancelled = true; };
@@ -226,6 +233,79 @@ export function Reports({ year }: { year: number }) {
         </div>
       )}
 
+      {k1099 && k1099.channels.length > 0 && (
+        <div className="section">
+          <h2>Form 1099-K — what the platforms will report</h2>
+          <p className="sub">
+            A platform files only when it settles more than $20,000 for you across more than 200
+            transactions. Both tests. The threshold is the platform&rsquo;s filing duty, never yours.
+          </p>
+
+          {k1099.formsExpected > 0 ? (
+            <Banner>
+              <strong>
+                Expect {k1099.formsExpected} form{k1099.formsExpected === 1 ? '' : 's'} totalling{' '}
+                {money(k1099.expectedOnFormsCents)}.
+              </strong>{' '}
+              That is gross — shipping buyers paid and sales tax the platform collected are in it, and fees and
+              refunds are not taken out. Start Schedule C line 1 from that figure and deduct down.
+            </Banner>
+          ) : (
+            <Banner kind="warn">
+              <strong>No 1099-K is expected, and every dollar is still taxable.</strong> The IRS puts it
+              plainly: all income, no matter the amount, is taxable unless the law says it isn&rsquo;t — even if
+              you don&rsquo;t get a Form 1099-K.
+            </Banner>
+          )}
+
+          <div className="panel">
+            {k1099.channels.map((c) => (
+              <div className="list-item" key={c.channel}>
+                <div className="grow">
+                  <strong>{c.label}</strong>
+                  <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>
+                    {c.transactionCount} sale{c.transactionCount === 1 ? '' : 's'} ·{' '}
+                    {formStatus(c)}
+                  </div>
+                  <div className="faint" style={{ fontSize: 12, marginTop: 5 }}>{c.note}</div>
+                  {c.reconcilingCents > 0 && (
+                    <div className="faint" style={{ fontSize: 12, marginTop: 5 }}>
+                      Schedule C line 1 takes {money(c.scheduleCReceiptsCents)} of this; the other{' '}
+                      {money(c.reconcilingCents)} is sales tax that went to the state.
+                    </div>
+                  )}
+                </div>
+                <div className="amount">{money(c.reportableGrossCents)}</div>
+              </div>
+            ))}
+            <div className="list-item" style={{ borderTopWidth: 2 }}>
+              <div className="grow">
+                <strong>All channels</strong>
+                <div className="faint" style={{ fontSize: 12, marginTop: 3 }}>
+                  {k1099.channels.reduce((n, c) => n + c.transactionCount, 0)} sales ·{' '}
+                  {money(k1099.channels.reduce((n, c) => n + c.scheduleCReceiptsCents, 0))} to Schedule C line 1
+                </div>
+              </div>
+              <div className="amount">{money(k1099.totalReportableGrossCents)}</div>
+            </div>
+
+            {k1099.approaching.length > 0 && (
+              <p className="faint" style={{ marginTop: 12 }}>
+                Closing in on a form:{' '}
+                {k1099.approaching
+                  .map((p) => `${p.channel.label} (${Math.round(p.overallProgress * 100)}% of the binding test)`)
+                  .join(', ')}
+                . Keep the fee and refund statements now, while it is still easy.
+              </p>
+            )}
+
+            <ul className="faint" style={{ paddingLeft: 16, marginTop: 12 }}>
+              {k1099.explanation.map((e) => <li key={e} style={{ marginBottom: 4 }}>{e}</li>)}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {sc.warnings.length > 0 && (
         <div className="section">
           <h2>Before you file</h2>
@@ -236,4 +316,16 @@ export function Reports({ year }: { year: number }) {
       <Banner>{sc.disclaimer}</Banner>
     </>
   );
+}
+
+/**
+ * Why a platform will or will not send a form. A form needs BOTH tests, so
+ * when one is missing that one is the whole answer.
+ */
+function formStatus(c: ChannelReporting): string {
+  if (c.formExpected) return 'a form is coming';
+  if (c.basis !== 'settlement-organisation') return 'no form unless a card reader was used';
+  if (c.meetsDollarTest) return 'no form — over $20,000 but under 200 sales';
+  if (c.meetsTransactionTest) return 'no form — over 200 sales but under $20,000';
+  return 'no form — under $20,000 and under 200 sales';
 }

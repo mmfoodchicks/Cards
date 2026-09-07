@@ -60,10 +60,13 @@ export function deadlinesForYear(year: number): Deadline[] {
     detail:
       'Platforms report gross payments — including sales tax they collected, shipping the buyer paid, and ' +
       'before their fees and any refunds. That figure will be HIGHER than what you banked, and the return has ' +
-      'to reconcile to it. Check each one against your own records when it arrives.',
+      'to reconcile to it. Check each one against your own records when it arrives. If a form does NOT come, ' +
+      'the income is taxable anyway — the threshold is the platform\'s filing duty, not your reporting duty.',
     formNumber: '1099-K',
     dueOn: `${year + 1}-01-31`,
-    appliesWhen: 'Your platform sales exceed the reporting threshold.',
+    appliesWhen:
+      'A platform settled MORE than $20,000 for you across MORE than 200 transactions — both tests. ' +
+      'Card-reader sales have no threshold and are reported from the first cent.',
     url: 'https://www.irs.gov/businesses/understanding-your-form-1099-k',
   });
 

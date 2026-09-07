@@ -23,6 +23,7 @@ import { scheduleCWorksheet } from '../reports/scheduleCWorksheet.js';
 import { exportYear } from '../reports/export.js';
 import { estimatedTaxPlan } from '../tax/estimatedTax.js';
 import { selfEmploymentTax, setAsideGuidance } from '../tax/selfEmployment.js';
+import { approachingThreshold, reporting1099k } from '../tax/reporting1099k.js';
 import { availableYears, figureHealth, taxYear } from '../tax/registry.js';
 import { ACCOUNTS, SCHEDULE_C_LINES, selectableAccounts } from '../tax/scheduleC.js';
 import { complianceChecklist } from '../compliance/checklist.js';
@@ -490,6 +491,18 @@ api.get('/reports/capital-gains', (req, res) => res.json(capitalGainsForYear(yea
 api.get('/reports/investment-schedule', (_req, res) => res.json(investmentSchedule()));
 
 api.get('/reports/schedule-c', (req, res) => res.json(scheduleCWorksheet(yearParam(req))));
+
+api.get('/reports/1099k', handle((req, res) => {
+  const year = yearParam(req);
+  const figures = taxYear(year);
+  if (!figures) {
+    res.status(404).json({ error: `No tax figures are loaded for ${year}.` });
+    return;
+  }
+  const sales = listSales({ from: `${year}-01-01`, to: `${year}-12-31` });
+  const summary = reporting1099k(sales, figures);
+  res.json({ ...summary, approaching: approachingThreshold(summary, figures) });
+}));
 
 api.get('/reports/estimated-tax', handle((req, res) => {
   const year = yearParam(req);

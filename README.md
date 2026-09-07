@@ -156,6 +156,30 @@ beginning-plus-purchases-less-ending, and the basis actually relieved by sales �
 and compared. They must agree to the cent. If they do not, something is wrong in
 the books and the app says so instead of reporting a confident number.
 
+### What the platforms will report about you
+
+The 1099-K threshold moved twice in five years and the confusion is still doing
+damage. The current rule, restored retroactively by the One, Big, Beautiful Bill
+Act: a marketplace files only when it settles **more than $20,000** for you
+across **more than 200 transactions**. Both tests, not either.
+
+Three things follow, and the app says all three because every one of them costs
+people money:
+
+- **The threshold is the platform's, not yours.** It decides whether eBay must
+  mail a form. It decides nothing about whether the money is taxable. The IRS
+  says so directly: all income, no matter the amount, is taxable — even if you
+  don't get a Form 1099-K.
+- **It is per platform.** $15,000 on eBay and $15,000 on Whatnot is $30,000 of
+  income and zero forms.
+- **Card readers have no threshold at all.** One $40 swipe on a Square reader at
+  a show puts you on a 1099-K, even if everything else you did was cash.
+
+The report shows what each platform is expected to report, how far each is from
+the thresholds, and the gap between the form's gross figure and Schedule C
+line 1 — while there is still time to keep the fee and refund records, rather
+than in January when they have to be reconstructed.
+
 ### Quarterly estimated tax
 
 Both safe harbours, and the lower one wins: 90% of this year's tax, or 100% of
@@ -252,7 +276,7 @@ src/
   domain/       money as integer cents, and the business model
   ledger/       purchases, basis allocation, opening packs, grading
   reports/      cost of goods sold, profit and loss, capital gains, export
-  tax/          figures with sources, self-employment, estimated tax, Utah
+  tax/          figures with sources, self-employment, estimated tax, 1099-K, Utah
   compliance/   the checklist and the deadline calendar
   db/           SQLite schema, queries, audit log
   routes/       HTTP API

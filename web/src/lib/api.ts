@@ -248,6 +248,39 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 const post = <T,>(path: string, body: unknown): Promise<T> =>
   request<T>(path, { method: 'POST', body: JSON.stringify(body) });
 
+export interface ChannelReporting {
+  channel: string;
+  label: string;
+  basis: 'settlement-organisation' | 'payment-card' | 'self-reported';
+  reportableGrossCents: number;
+  scheduleCReceiptsCents: number;
+  reconcilingCents: number;
+  transactionCount: number;
+  meetsDollarTest: boolean;
+  meetsTransactionTest: boolean;
+  formExpected: boolean;
+  note: string;
+}
+
+export interface ThresholdProgress {
+  channel: ChannelReporting;
+  dollarProgress: number;
+  transactionProgress: number;
+  overallProgress: number;
+}
+
+export interface Reporting1099k {
+  year: number;
+  channels: ChannelReporting[];
+  expectedOnFormsCents: number;
+  formsExpected: number;
+  totalReportableGrossCents: number;
+  belowThresholdCents: number;
+  explanation: string[];
+  unverified: string[];
+  approaching: ThresholdProgress[];
+}
+
 export const api = {
   health: () => request<Health>('/health'),
   profile: () => request<Profile>('/profile'),
@@ -294,6 +327,7 @@ export const api = {
   scheduleC: (year: number) => request<ScheduleC>(`/reports/schedule-c?year=${year}`),
   estimatedTax: (year: number) => request<EstimatedTax>(`/reports/estimated-tax?year=${year}`),
   capitalGains: (year: number) => request<CapitalGains>(`/reports/capital-gains?year=${year}`),
+  reporting1099k: (year: number) => request<Reporting1099k>(`/reports/1099k?year=${year}`),
   investmentSchedule: () =>
     request<{ generatedAt: string; entries: Array<Record<string, unknown>>; totalBasisCents: number; totalValueCents: number; guidance: string[] }>(
       '/reports/investment-schedule',
