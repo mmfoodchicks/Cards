@@ -198,11 +198,28 @@ export function setAsideGuidance(marginalIncomeTaxRate: number | null): {
   }
   // Income tax applies to profit less half the self-employment tax.
   const combined = seOnly + marginalIncomeTaxRate * (1 - seOnly / 2);
+
+  // A marginal rate of zero is a real answer, not a missing one: the standard
+  // deduction is still absorbing the profit. Saying "and the rest for income
+  // tax" there would be wrong, and it is exactly the case a first-year seller
+  // is in.
+  if (marginalIncomeTaxRate === 0) {
+    return {
+      seOnlyRate: seOnly,
+      suggestedRate: combined,
+      explanation:
+        `Set aside roughly ${Math.round(combined * 100)}% of every dollar of profit, all of it for ` +
+        'self-employment tax. Your income so far is still covered by the standard deduction, so federal ' +
+        'income tax adds nothing yet — that changes the moment it is not.',
+    };
+  }
+
   return {
     seOnlyRate: seOnly,
     suggestedRate: combined,
     explanation:
       `Set aside roughly ${Math.round(combined * 100)}% of every dollar of profit: about 14% for ` +
-      'self-employment tax and the rest for income tax. Move it to a separate account the day the money lands.',
+      `self-employment tax and about ${Math.round(marginalIncomeTaxRate * (1 - seOnly / 2) * 100)}% for ` +
+      'income tax. Move it to a separate account the day the money lands.',
   };
 }

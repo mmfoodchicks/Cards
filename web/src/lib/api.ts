@@ -131,6 +131,38 @@ export interface SelfEmployment {
   unverified: string[];
 }
 
+export interface BracketSlice {
+  rate: number;
+  amountCents: number;
+  taxCents: number;
+}
+
+export interface FederalIncomeTax {
+  grossIncomeCents: number;
+  selfEmploymentDeductionCents: number;
+  qbiDeductionCents: number;
+  standardDeductionCents: number;
+  taxableIncomeCents: number;
+  ordinaryTaxCents: number;
+  collectiblesTaxCents: number;
+  totalTaxCents: number;
+  marginalRate: number;
+  effectiveRate: number;
+  slices: BracketSlice[];
+  explanation: string[];
+  limitations: string[];
+  unverified: string[];
+}
+
+export interface StateIncomeTax {
+  rate: number;
+  taxableCents: number;
+  taxCents: number;
+  explanation: string[];
+  limitations: string[];
+  unverified: string[];
+}
+
 export interface EstimatedTax {
   year: number;
   safeHarbor: {
@@ -154,6 +186,9 @@ export interface EstimatedTax {
   warnings: string[];
   projectionBasis: string;
   selfEmployment: SelfEmployment | null;
+  federalIncomeTax: FederalIncomeTax | null;
+  stateIncomeTax: StateIncomeTax | null;
+  combinedMarginalRate: number | null;
   setAside: { seOnlyRate: number; suggestedRate: number | null; explanation: string };
   figuresNeedingCheck: Array<{ key: string; label: string; source: string; note: string | null }>;
 }

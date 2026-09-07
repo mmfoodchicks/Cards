@@ -16,8 +16,11 @@ import { getDb } from '../db/index.js';
 import { getProfile } from '../db/repos.js';
 import { isLongTerm } from '../reports/capitalGains.js';
 import { approachingThreshold, reporting1099k } from '../tax/reporting1099k.js';
+import { incomeTax } from '../tax/incomeTax.js';
+import { selfEmploymentTax } from '../tax/selfEmployment.js';
+import type { TaxYearFigures } from '../tax/figures.js';
 import { taxYear } from '../tax/registry.js';
-import type { IsoDate, SalesChannel } from '../domain/types.js';
+import type { FilingStatus, IsoDate, SalesChannel } from '../domain/types.js';
 
 export type GuidanceSeverity = 'opportunity' | 'caution' | 'information';
 
@@ -85,14 +88,24 @@ function seedCardGuidance(db: Db, startedOn: IsoDate | null, today: IsoDate): Gu
     estimatedValueCents: number; status: string;
   }>;
 
+  const year = Number(today.slice(0, 4));
+  const figures = taxYear(year);
+  const profile = getProfile(db);
+
   return held.map((item) => {
     const gain = item.estimatedValueCents - item.basisCents;
-    // Self-employment tax is roughly 15.3% of 92.35% of profit. That is the
-    // amount at stake purely from the classification, before any rate
-    // difference between ordinary and capital treatment.
-    const seTaxIfInventory = Math.round(gain * 0.153 * 0.9235);
     const longTerm = isLongTerm(item.acquiredOn, today);
     const businessStarted = startedOn !== null && startedOn <= today;
+
+    // What the classification is actually worth, computed both ways rather than
+    // quoted as the raw self-employment tax.
+    //
+    // Quoting the SE tax alone overstates it, often badly. Ordinary treatment
+    // costs the SE tax, but it also brings the deduction for half of that tax
+    // AND the section 199A deduction, which together claw a good deal of it
+    // back. Meanwhile capital treatment is not free either: a collectible is
+    // taxed up to 28%. The number worth showing is the difference.
+    const cost = classificationCost(gain, item.acquiredOn, today, profile, figures);
 
     return {
       id: `seed-card-${item.id}`,
@@ -101,16 +114,16 @@ function seedCardGuidance(db: Db, startedOn: IsoDate | null, today: IsoDate): Gu
       because:
         `You are holding it as a personal collection piece, acquired ${item.acquiredOn}, ` +
         `with about ${fmt(gain)} of gain on paper.`,
-      worthCents: seTaxIfInventory,
+      worthCents: cost.differenceCents,
       body: [
         `Sold out of your personal collection, this is a capital gain: reported on Form 8949, with NO ` +
           `self-employment tax. ${longTerm
             ? 'You have held it more than a year, so the rate is capped at 28% — and if your ordinary rate is lower, you simply pay that.'
             : 'You have held it a year or less, so it is a short-term gain taxed at ordinary rates. Holding past the one-year mark, if you can, changes that.'}`,
-        `Sold as business inventory, the whole thing is ordinary income on Schedule C and picks up about ` +
-          `${fmt(seTaxIfInventory)} of self-employment tax on top of income tax — including on all the ` +
-          `appreciation that happened before the business existed. There is no step-up when a personal card ` +
-          `becomes inventory.`,
+        cost.explanation,
+        `There is no step-up when a personal card becomes inventory: the basis carries over and the character ` +
+          `is tested at sale, so ALL the appreciation — including everything that accrued before the business ` +
+          `existed — is caught.`,
         businessStarted
           ? 'Your business has already started trading, which makes the personal-collection position harder to ' +
             'hold — especially if this sells on the same account, alongside flips. Keep it completely separate ' +
@@ -370,6 +383,72 @@ function marketplaceReportingGuidance(db: Db, today: IsoDate): Guidance[] {
 
 function sum(values: readonly number[]): number {
   return values.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * What treating one card as inventory rather than a collection piece costs.
+ *
+ * Both paths are priced against the same other income, so the answer is the
+ * genuine difference rather than a headline rate:
+ *
+ *   AS A CAPITAL ASSET   No self-employment tax. A collectible held more than
+ *                        a year is taxed at the ordinary rate but capped at
+ *                        28%; held a year or less it is simply ordinary.
+ *   AS INVENTORY         Ordinary income, plus self-employment tax — but the
+ *                        deduction for half of that tax and the section 199A
+ *                        deduction both push back, so the net cost is
+ *                        meaningfully less than the self-employment tax alone.
+ */
+function classificationCost(
+  gainCents: Cents,
+  acquiredOn: IsoDate,
+  today: IsoDate,
+  profile: { filingStatus: FilingStatus; otherIncomeCents: Cents },
+  figures: TaxYearFigures | null,
+): { differenceCents: Cents; explanation: string } {
+  const seOnly = Math.round(gainCents * 0.153 * 0.9235);
+
+  // Without rate schedules there is no honest way to compare the two, so fall
+  // back to the self-employment tax and say that is what is being quoted.
+  if (!figures || !figures.brackets) {
+    return {
+      differenceCents: seOnly,
+      explanation:
+        `Sold as business inventory it is ordinary income on Schedule C and picks up about ${fmt(seOnly)} of ` +
+        'self-employment tax on top of income tax. No rate schedules are loaded for this year, so that is the ' +
+        'self-employment tax alone rather than the full difference.',
+    };
+  }
+
+  const base = { otherIncomeCents: profile.otherIncomeCents, filingStatus: profile.filingStatus };
+  const baseline = incomeTax({ businessProfitCents: 0, ...base }, figures).totalTaxCents;
+
+  const longTerm = isLongTerm(acquiredOn, today);
+  const asCapital = incomeTax({
+    businessProfitCents: 0,
+    ...base,
+    ...(longTerm ? { collectiblesGainCents: gainCents } : { shortTermGainCents: gainCents }),
+  }, figures).totalTaxCents - baseline;
+
+  const se = selfEmploymentTax({
+    netProfitCents: gainCents,
+    wagesCents: profile.otherIncomeCents,
+    filingStatus: profile.filingStatus,
+  }, figures);
+  const asInventory =
+    incomeTax({
+      businessProfitCents: gainCents,
+      ...base,
+      selfEmploymentDeductionCents: se.deductionCents,
+    }, figures).totalTaxCents - baseline + se.totalCents;
+
+  return {
+    differenceCents: Math.max(0, asInventory - asCapital),
+    explanation:
+      `Priced both ways against your other income: about ${fmt(asCapital)} as a capital asset, about ` +
+      `${fmt(asInventory)} as inventory — ${fmt(se.totalCents)} of that being self-employment tax, partly ` +
+      'offset by the deduction for half of it and the section 199A deduction.',
+  };
 }
 
 function fmt(cents: Cents): string {

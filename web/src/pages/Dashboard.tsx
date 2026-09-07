@@ -108,6 +108,20 @@ export function Dashboard({ year, onNavigate }: { year: number; onNavigate: (tab
         <p className="sub">
           The mistake that hurts most in year one is spending profit that was never yours.
         </p>
+
+        {est.setAside.suggestedRate !== null && (
+          <Banner kind="warn">
+            <strong>{est.setAside.explanation}</strong>
+            {est.combinedMarginalRate !== null && (
+              <div style={{ marginTop: 6 }}>
+                The next dollar of profit costs {Math.round(est.combinedMarginalRate * 100)} cents in federal
+                tax — income tax at your marginal rate plus self-employment tax, less the deduction for half
+                of it. That is the number to judge a flip by, not the headline rate.
+              </div>
+            )}
+          </Banner>
+        )}
+
         <div className="grid two">
           <div className="panel">
             <h3>Self-employment tax</h3>
@@ -125,6 +139,36 @@ export function Dashboard({ year, onNavigate }: { year: number; onNavigate: (tab
               <p className="faint">No tax figures on file for {year}.</p>
             )}
           </div>
+
+          {est.federalIncomeTax && (
+            <div className="panel">
+              <h3>Federal income tax</h3>
+              <div className="stats" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <Stat label="On this profit" value={money(est.federalIncomeTax.totalTaxCents)} />
+                <Stat
+                  label="Marginal rate"
+                  value={`${(est.federalIncomeTax.marginalRate * 100).toFixed(1)}%`}
+                  note={`${(est.federalIncomeTax.effectiveRate * 100).toFixed(1)}% effective`}
+                />
+              </div>
+              <ul className="faint" style={{ paddingLeft: 16, marginTop: 10 }}>
+                {est.federalIncomeTax.explanation.slice(-2).map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            </div>
+          )}
+
+          {est.stateIncomeTax && (
+            <div className="panel">
+              <h3>Utah income tax</h3>
+              <div className="stats" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <Stat label="On this profit" value={money(est.stateIncomeTax.taxCents)} />
+                <Stat label="Flat rate" value={`${(est.stateIncomeTax.rate * 100).toFixed(2)}%`} note="TC-40" />
+              </div>
+              <ul className="faint" style={{ paddingLeft: 16, marginTop: 10 }}>
+                {est.stateIncomeTax.limitations.map((line) => <li key={line}>{line}</li>)}
+              </ul>
+            </div>
+          )}
 
           <div className="panel">
             <h3>Next estimated payment</h3>

@@ -26,8 +26,9 @@ describe('the seed card', () => {
     const guidance = guidanceFor({ today: new Date('2026-09-07T00:00:00Z'), db });
     const seed = guidance.find((g) => g.id.startsWith('seed-card-'))!;
     expect(seed).toBeDefined();
-    // $2,520 of gain, self-employment tax at roughly 14.13% of it.
-    expect(seed.worthCents).toBe(Math.round(252000 * 0.153 * 0.9235));
+    // With no other income the standard deduction absorbs the gain either way,
+    // so the whole difference is self-employment tax: 15.3% of 92.35% of $2,520.
+    expect(seed.worthCents).toBe(35607);
     expect(seed.body.join(' ')).toMatch(/no step-up/i);
     expect(seed.steps!.join(' ')).toMatch(/before you open a business account/i);
   });
@@ -132,6 +133,31 @@ describe('zero-basis stock', () => {
     const zero = guidance.find((g) => g.id === 'zero-basis')!;
     expect(zero).toBeDefined();
     expect(zero.body.join(' ')).toMatch(/right answer if they genuinely cost nothing/i);
+  });
+
+  it('prices both paths rather than quoting the self-employment tax alone', () => {
+    // With a day job the comparison changes shape: ordinary treatment still
+    // costs self-employment tax, but the deduction for half of it and the
+    // section 199A deduction claw a large part of it back, while capital
+    // treatment is no longer free because a collectible is taxed up to 28%.
+    // Quoting the raw self-employment tax would overstate the difference.
+    recordPurchase(
+      {
+        lot: lot(),
+        items: [{ description: 'Ohtani RC', kind: 'single', holdingIntent: 'investment', estimatedValueCents: 260000 }],
+      },
+      db,
+    );
+    updateProfile({ otherIncomeCents: 9000000, filingStatus: 'single' }, db);
+
+    const seed = guidanceFor({ today: new Date('2026-09-07T00:00:00Z'), db })
+      .find((g) => g.id.startsWith('seed-card-'))!;
+
+    const rawSeTax = Math.round(252000 * 0.153 * 0.9235);
+    expect(seed.worthCents).toBeGreaterThan(0);
+    expect(seed.worthCents).toBeLessThan(rawSeTax);
+    expect(seed.body.join(' ')).toMatch(/priced both ways/i);
+    expect(seed.body.join(' ')).toMatch(/section 199A/i);
   });
 });
 

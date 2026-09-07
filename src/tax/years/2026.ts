@@ -26,7 +26,67 @@ export const FIGURES_2026: TaxYearFigures = {
   year: 2026,
   reviewed: false,
   reviewedOn: null,
-  brackets: [],
+  brackets: {
+    // Transcribed from Rev. Proc. 2025-32, section .01 (Tax Rate Tables), which
+    // is the primary source rather than a summary of it. Each schedule was
+    // checked by recomputing the cumulative tax at every breakpoint against the
+    // "$X plus Y% of the excess" figure the Revenue Procedure states, and all
+    // five agree to the cent.
+    //
+    // Married-filing-separately is NOT the same schedule as single, despite
+    // sharing the first five breakpoints: it tracks half of the joint schedule,
+    // so its 37% bracket starts at $384,350 rather than $640,600.
+    authority: 'Rev. Proc. 2025-32, section .01; IRC 1(j)(2)',
+    source: 'https://www.irs.gov/pub/irs-drop/rp-25-32.pdf',
+    confidence: 'verified',
+    byStatus: {
+      'single': [
+        { fromCents: 0, toCents: 1240000, rate: 0.1 },
+        { fromCents: 1240000, toCents: 5040000, rate: 0.12 },
+        { fromCents: 5040000, toCents: 10570000, rate: 0.22 },
+        { fromCents: 10570000, toCents: 20177500, rate: 0.24 },
+        { fromCents: 20177500, toCents: 25622500, rate: 0.32 },
+        { fromCents: 25622500, toCents: 64060000, rate: 0.35 },
+        { fromCents: 64060000, toCents: null, rate: 0.37 },
+      ],
+      'married-joint': [
+        { fromCents: 0, toCents: 2480000, rate: 0.1 },
+        { fromCents: 2480000, toCents: 10080000, rate: 0.12 },
+        { fromCents: 10080000, toCents: 21140000, rate: 0.22 },
+        { fromCents: 21140000, toCents: 40355000, rate: 0.24 },
+        { fromCents: 40355000, toCents: 51245000, rate: 0.32 },
+        { fromCents: 51245000, toCents: 76870000, rate: 0.35 },
+        { fromCents: 76870000, toCents: null, rate: 0.37 },
+      ],
+      'qualifying-surviving-spouse': [
+        { fromCents: 0, toCents: 2480000, rate: 0.1 },
+        { fromCents: 2480000, toCents: 10080000, rate: 0.12 },
+        { fromCents: 10080000, toCents: 21140000, rate: 0.22 },
+        { fromCents: 21140000, toCents: 40355000, rate: 0.24 },
+        { fromCents: 40355000, toCents: 51245000, rate: 0.32 },
+        { fromCents: 51245000, toCents: 76870000, rate: 0.35 },
+        { fromCents: 76870000, toCents: null, rate: 0.37 },
+      ],
+      'head-of-household': [
+        { fromCents: 0, toCents: 1770000, rate: 0.1 },
+        { fromCents: 1770000, toCents: 6745000, rate: 0.12 },
+        { fromCents: 6745000, toCents: 10570000, rate: 0.22 },
+        { fromCents: 10570000, toCents: 20175000, rate: 0.24 },
+        { fromCents: 20175000, toCents: 25620000, rate: 0.32 },
+        { fromCents: 25620000, toCents: 64060000, rate: 0.35 },
+        { fromCents: 64060000, toCents: null, rate: 0.37 },
+      ],
+      'married-separate': [
+        { fromCents: 0, toCents: 1240000, rate: 0.1 },
+        { fromCents: 1240000, toCents: 5040000, rate: 0.12 },
+        { fromCents: 5040000, toCents: 10570000, rate: 0.22 },
+        { fromCents: 10570000, toCents: 20177500, rate: 0.24 },
+        { fromCents: 20177500, toCents: 25622500, rate: 0.32 },
+        { fromCents: 25622500, toCents: 38435000, rate: 0.35 },
+        { fromCents: 38435000, toCents: null, rate: 0.37 },
+      ],
+    },
+  },
   deadlines: [],
   figures: {
     // --- Self-employment tax: all statutory -------------------------------
@@ -266,6 +326,28 @@ export const FIGURES_2026: TaxYearFigures = {
       authority: 'Rev. Proc. 2025-32',
       source: 'https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill',
       confidence: 'verified',
+    }),
+    'deduction.standard.headOfHousehold': figure({
+      key: 'deduction.standard.headOfHousehold',
+      label: 'Standard deduction (head of household)',
+      value: 2415000,
+      year: 2026,
+      kind: 'indexed',
+      authority: 'Rev. Proc. 2025-32',
+      source: 'https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill',
+      confidence: 'verified',
+      note: '$24,150 for 2026.',
+    }),
+    'deduction.standard.marriedSeparate': figure({
+      key: 'deduction.standard.marriedSeparate',
+      label: 'Standard deduction (married filing separately)',
+      value: 1610000,
+      year: 2026,
+      kind: 'indexed',
+      authority: 'Rev. Proc. 2025-32',
+      source: 'https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill',
+      confidence: 'verified',
+      note: 'Same $16,100 as single. The BRACKETS differ from single even though this figure does not.',
     }),
     'qbi.threshold.single': figure({
       key: 'qbi.threshold.single',

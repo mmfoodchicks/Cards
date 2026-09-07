@@ -262,6 +262,55 @@ records, rather than in January when they have to be reconstructed.
 
 ---
 
+## Federal income tax on business profit
+
+Business profit is ordinary income. It goes on Schedule C, flows to Form 1040,
+and is taxed at the 2026 rate schedules — **on top of** whatever else you earn.
+There is no separate, lower rate for a side hustle.
+
+The 2026 schedule for a single filer, from Rev. Proc. 2025-32 §.01:
+
+| Taxable income over | Rate |
+|---|---|
+| $0 | 10% |
+| $12,400 | 12% |
+| $50,400 | 22% |
+| $105,700 | 24% |
+| $201,775 | 32% |
+| $256,225 | 35% |
+| $640,600 | 37% |
+
+Married filing jointly doubles each of these. Head of household has its own
+schedule ($17,700 / $67,450 / $105,700 / $201,750 / $256,200 / $640,600).
+**Married filing separately is not the same as single** — it tracks half the
+joint schedule, so its 37% bracket starts at $384,350 rather than $640,600.
+
+Three things reduce what the profit is taxed on, and all three are easy to miss:
+
+- **Half of self-employment tax** is an above-the-line adjustment. It is not a
+  Schedule C expense; it goes on Schedule 1.
+- **The section 199A deduction** takes 20% off qualified business income, on
+  Form 8995. For a sole proprietor below the $201,750 threshold there is no wage
+  or property limit — it is simply 20%, limited to 20% of taxable income. This
+  is worth roughly a fifth of your marginal rate and people routinely forget it.
+- **The standard deduction** — $16,100 single for 2026 — applies before any of
+  the brackets bite. In a first year with modest profit and no other income, it
+  can absorb the profit entirely, leaving self-employment tax as the whole bill.
+
+### Utah
+
+Utah taxes at a flat **4.45%** starting from federal adjusted gross income, so
+Schedule C profit flows straight through. There is no separate Utah business
+return for a sole proprietor — it goes on TC-40 with everything else, and Utah
+has no individual estimated-payment system, so it settles in April.
+
+Utah has no standard deduction. It grants a **taxpayer tax credit** instead,
+which phases out at 1.3 cents per dollar of income above a threshold. Inside the
+phase-out the effective marginal rate is above 4.45%; above it, the flat rate is
+exact. The app does not model the credit and says so.
+
+---
+
 ## Things that are not deductible
 
 - Federal income tax and self-employment tax (half of SE tax is an adjustment

@@ -180,6 +180,35 @@ the thresholds, and the gap between the form's gross figure and Schedule C
 line 1 — while there is still time to keep the fee and refund records, rather
 than in January when they have to be reconstructed.
 
+### What a dollar of profit actually costs
+
+Self-employment tax is only half the bill. Income tax is the other half, and for
+anyone with a day job it is usually the larger one — because business profit
+**stacks on top of wages** and is taxed at the marginal rate those wages already
+reached.
+
+That stacking is what makes "set aside 30%" wrong in both directions:
+
+| Wages | SE tax on $10,000 profit | Federal income tax on it | Set aside |
+|---|---|---|---|
+| $0 | $1,412.96 | $0 — the standard deduction covers it | 14% |
+| $45,000 | $1,412.96 | 9.6% on the margin | 23% |
+| $90,000 | $1,412.96 | 17.6% on the margin | 30% |
+| $150,000 | $1,412.96 | 19.2% on the margin | 32% |
+
+Those marginal rates are lower than the headline brackets because the section
+199A deduction takes 20% off qualified business income, and the app applies it.
+
+The app computes federal income tax against the 2026 rate schedules for your
+filing status, the standard deduction, the deduction for half of
+self-employment tax, and section 199A. It states what it does **not** model —
+itemised deductions, credits of any kind, the preferential long-term capital
+gains rates, alternative minimum tax — rather than implying the number is a
+return.
+
+Utah is shown separately at its flat 4.45%, because Utah has no separate
+estimated-payment system for individuals: it settles with the annual return.
+
 ### Quarterly estimated tax
 
 Both safe harbours, and the lower one wins: 90% of this year's tax, or 100% of
@@ -220,6 +249,9 @@ Confirmed for 2026 against primary sources:
 | Business meals | 50% | IRC 274(n) |
 | Home office simplified | $5/sq ft, 300 sq ft cap | Rev. Proc. 2013-13 |
 | De minimis safe harbor | $2,500 per item | Treas. Reg. 1.263(a)-1(f) |
+| Federal rate schedules | all five, 2026 | Rev. Proc. 2025-32 §.01 |
+| Standard deduction | $16,100 single, $32,200 joint, $24,150 HoH | Rev. Proc. 2025-32 |
+| Form 1099-K threshold | over $20,000 AND over 200 sales | IRC 6050W(e), OBBB Act |
 | Utah income tax | 4.45% | Utah S.B. 60 (2026) |
 | Davis County sales tax | 7.15% or 7.25% | Utah Tax Commission, Q3 2026 |
 

@@ -24,6 +24,8 @@ import { exportYear } from '../reports/export.js';
 import { estimatedTaxPlan } from '../tax/estimatedTax.js';
 import { selfEmploymentTax, setAsideGuidance } from '../tax/selfEmployment.js';
 import { approachingThreshold, reporting1099k } from '../tax/reporting1099k.js';
+import { combinedMarginalRate, incomeTax } from '../tax/incomeTax.js';
+import { utahIncomeTax } from '../tax/utah/incomeTax.js';
 import { availableYears, figureHealth, taxYear } from '../tax/registry.js';
 import { ACCOUNTS, SCHEDULE_C_LINES, selectableAccounts } from '../tax/scheduleC.js';
 import { complianceChecklist } from '../compliance/checklist.js';
@@ -511,10 +513,26 @@ api.get('/reports/estimated-tax', handle((req, res) => {
   const worksheet = scheduleCWorksheet(year);
 
   const se = worksheet.selfEmployment;
-  // Income tax is not modelled here — brackets and the standard deduction have
-  // not been verified — so the projection covers self-employment tax only and
-  // says so, rather than inventing a number.
-  const projectedTax = se ? se.totalCents : 0;
+  const pl = worksheet.profitLoss;
+  const cg = worksheet.capitalGains;
+
+  // Income tax used to be omitted entirely, which made the projection a floor
+  // rather than a number anyone could budget from. It is now computed against
+  // the year's rate schedules, with the limitations stated rather than buried.
+  const federal = figures && figures.brackets
+    ? incomeTax({
+        businessProfitCents: pl.netProfitCents,
+        otherIncomeCents: profile.otherIncomeCents,
+        selfEmploymentDeductionCents: se ? se.deductionCents : 0,
+        collectiblesGainCents: cg.collectiblesGainCents,
+        shortTermGainCents: cg.shortTermGainCents,
+        filingStatus: profile.filingStatus,
+      }, figures)
+    : null;
+
+  const utah = figures && profile.state === 'UT' ? utahIncomeTax(pl.netProfitCents, figures) : null;
+
+  const projectedTax = (se ? se.totalCents : 0) + (federal ? federal.totalTaxCents : 0);
 
   const plan = estimatedTaxPlan({
     year,
@@ -526,12 +544,18 @@ api.get('/reports/estimated-tax', handle((req, res) => {
 
   res.json({
     ...plan,
-    projectionBasis:
-      'Self-employment tax on the profit recorded so far. Federal income tax is NOT included — the brackets ' +
-      'and standard deduction for this year have not been verified in this app, so adding them would be a ' +
-      'guess. Treat this as a floor, not a total.',
+    projectionBasis: federal
+      ? 'Self-employment tax plus federal income tax on the profit recorded so far, at this year\'s rate ' +
+        'schedules and standard deduction. It assumes you take the standard deduction and claims no credits, ' +
+        'so it errs high on the credit side and low if you itemise. State tax is shown separately because ' +
+        'Utah settles it with the annual return, not through federal instalments.'
+      : 'Self-employment tax only. No rate schedules are loaded for this year, so federal income tax is not ' +
+        'included and this is a floor rather than a total.',
     selfEmployment: se,
-    setAside: setAsideGuidance(null),
+    federalIncomeTax: federal,
+    stateIncomeTax: utah,
+    setAside: setAsideGuidance(federal ? federal.marginalRate : null),
+    combinedMarginalRate: federal ? combinedMarginalRate(federal) : null,
     figuresNeedingCheck: worksheet.figuresNeedingCheck,
     hasFigures: figures !== null,
   });

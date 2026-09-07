@@ -24,6 +24,8 @@
  *               wrong return.
  */
 
+import type { FilingStatus } from '../domain/types.js';
+
 export type FigureConfidence =
   /** Checked against the primary source named in `source`. */
   | 'verified'
@@ -91,7 +93,7 @@ export interface TaxYearFigures {
   reviewedOn: string | null;
   figures: Record<string, TaxFigure<number>>;
   /** Non-numeric facts: rate tables, brackets, deadline dates. */
-  brackets: TaxBracket[];
+  brackets: BracketTables | null;
   deadlines: TaxDeadline[];
 }
 
@@ -101,6 +103,20 @@ export interface TaxBracket {
   /** Upper bound in cents, exclusive. null means no upper bound. */
   toCents: number | null;
   rate: number;
+}
+
+/**
+ * Rate schedules, one per filing status.
+ *
+ * A single flat list would be a trap: every status has its own breakpoints, and
+ * married-filing-separately in particular is NOT the same as single — it tracks
+ * half of the joint schedule, so its top bracket starts far earlier.
+ */
+export interface BracketTables {
+  authority: string;
+  source: string;
+  confidence: FigureConfidence;
+  byStatus: Record<FilingStatus, TaxBracket[]>;
 }
 
 export interface TaxDeadline {
