@@ -49,17 +49,56 @@ only: not supplies you use up, and not a card you decide to keep.
 
 ### 3. Your city
 
-**A city business licence is probably required, including for a home business.**
-Fees and rules differ city by city across Davis County, and this is the
-requirement online sellers most often miss because nothing about selling on eBay
-feels like it should involve city hall.
+This is the requirement online sellers most often miss, and the answer genuinely
+differs city to city. **Davis County itself licenses only unincorporated areas** —
+inside any city, you deal with the city.
+
+Checked September 2026 against each city's own pages. Fees and ordinances
+change; confirm before relying on any of it.
+
+| City | Licence for a home reseller? | Fee for a quiet home business |
+|---|---|---|
+| Layton | Yes | **Free** if nobody visits. $40 + $50 inspection if they do |
+| Bountiful | Yes | Not published — ask |
+| Centerville | Yes | Not published — ask |
+| Clearfield | Yes | Not published — ask |
+| Clinton | Yes | Not published. **Fire AND building inspection first** |
+| Farmington | **Generally not required** | $30 if you want one |
+| Fruit Heights | Yes — even just having the address here | **Free** for low impact |
+| Kaysville | **Not mandatory** for a Minor Home Occupation | ~$30 optional |
+| North Salt Lake | Conditional — state exemption may apply | Free if exempt, $25/yr voluntary |
+| South Weber | Probably not, with no patrons | Fee line exists only for patrons/employees |
+| Sunset | Yes — covers temporary activity too | Not published — ask |
+| Syracuse | **Not for a minor home occupation** | Not published — ask |
+| West Point | Yes | **Free**. $25 late penalty |
+| Woods Cross | Yes, plus a Home Occupation Permit | Not published — ask |
+| Unincorporated | Yes (county) | State law bars a fee without offsite impact |
+
+**The pattern worth knowing:** most of these turn on *offsite impact*. A business
+nobody visits, with no signage, no employees and no deliveries beyond normal
+mail, is usually free or exempt. Start having customers come to the house and
+the fee, the inspection and sometimes a conditional use permit all appear.
+
+Utah Code 17-53-216(4)(b) bars a county from charging a home-based business a
+licence fee at all unless it has combined offsite impact, and several cities
+apply the same reasoning.
 
 **Home occupation rules** typically forbid customer traffic and signage, limit
 the share of the home used, and restrict outside employees and deliveries. A
-card business in a spare room usually fits comfortably — but the permit is often
-still required.
+card business in a spare room usually fits comfortably. The specific traps found:
 
-**Check with your own city.** A neighbouring city's rules do not apply to you.
+- **Clinton** requires a fire safety inspection *and* a building inspection
+  before issuing, and renters need the owner's consent.
+- **Centerville** permits only a short list of home occupations without Planning
+  Commission approval — check whether card resale is on it.
+- **Woods Cross** allows home occupations only in residential, mixed-use
+  residential or agricultural zones.
+- **Sunset**'s ordinance expressly covers *temporary* activity, so a one-off
+  table at a Sunset event is caught.
+- **Fruit Heights** triggers on the address alone — even if the business is not
+  conducted in the city.
+- **Kaysville** has older handouts still saying a licence is required, which the
+  current guidance contradicts. Confirm which applies.
 
 ### 4. Ongoing
 

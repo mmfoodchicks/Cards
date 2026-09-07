@@ -17,7 +17,8 @@
  * says so rather than stating it as fact.
  */
 
-import type { BusinessProfile, ComplianceTask } from '../domain/types.js';
+import type { BusinessProfile, ComplianceTask, Requirement } from '../domain/types.js';
+import { licensingFor } from './davisCounty.js';
 
 /** Marks content that has not been confirmed against a primary source. */
 export const UNCONFIRMED = 'NOT YET CONFIRMED — check the agency directly before relying on this.';
@@ -265,37 +266,6 @@ const UTAH: ComplianceTask[] = [
     url: 'https://www.daviscountyutah.gov/assessor',
     estimatedCost: UNCONFIRMED,
   },
-  {
-    id: 'local-business-licence',
-    jurisdiction: 'city',
-    title: 'Get a city business licence',
-    detail:
-      'Most Utah cities license businesses, including home-based ones, and the fees and rules differ city by ' +
-      'city. This is the requirement online sellers most often miss, because nothing about selling on eBay ' +
-      'feels like it should involve city hall. Check with YOUR city — a neighbouring city’s rules do not ' +
-      'apply to you. ' + UNCONFIRMED,
-    requirement: 'conditional',
-    appliesWhen: 'Your city requires a licence for home-based businesses. Most Utah cities do.',
-    formNumber: null,
-    agency: 'Your city',
-    url: null,
-    estimatedCost: UNCONFIRMED,
-  },
-  {
-    id: 'local-home-occupation',
-    jurisdiction: 'city',
-    title: 'Check home occupation and zoning rules',
-    detail:
-      'Cities that allow home businesses attach conditions: no customer traffic, no signage, limits on the ' +
-      'share of the home used, no outside employees, restrictions on deliveries and storage. A card business ' +
-      'in a spare room usually fits comfortably, but the permit is often still required. ' + UNCONFIRMED,
-    requirement: 'conditional',
-    appliesWhen: 'You operate from home.',
-    formNumber: null,
-    agency: 'Your city planning or zoning department',
-    url: null,
-    estimatedCost: UNCONFIRMED,
-  },
 ];
 
 /**
@@ -308,7 +278,7 @@ const UTAH: ComplianceTask[] = [
 export function complianceChecklist(profile: BusinessProfile): ComplianceTask[] {
   const tasks = [...FEDERAL];
   if (profile.state.toUpperCase() === 'UT') {
-    tasks.push(...UTAH);
+    tasks.push(...UTAH, ...cityTasks(profile));
   } else {
     tasks.push({
       id: 'state-unknown',
@@ -325,6 +295,88 @@ export function complianceChecklist(profile: BusinessProfile): ComplianceTask[] 
       estimatedCost: null,
     });
   }
+  return tasks;
+}
+
+/**
+ * City licensing, resolved to the user's actual city.
+ *
+ * Generic advice to "check with your city" is technically correct and useless.
+ * The answer genuinely differs — Kaysville and Farmington exempt a quiet home
+ * business, Layton requires a licence but charges nothing for one, Clinton
+ * wants two inspections first — so the checklist names what THIS city does.
+ */
+function cityTasks(profile: BusinessProfile): ComplianceTask[] {
+  const city = licensingFor(profile.city);
+
+  if (!city) {
+    return [
+      {
+        id: 'local-business-licence',
+        jurisdiction: 'city',
+        title: 'Find out whether your city requires a business licence',
+        detail:
+          profile.city
+            ? `"${profile.city}" is not one of the Davis County cities on file. Most Utah cities license home-based ` +
+              'businesses, and the rules and fees vary. Check with the city directly.'
+            : 'Set your city in Settings and the specific requirement will appear here. Most Utah cities license ' +
+              'home-based businesses, and this is the requirement online sellers most often miss.',
+        requirement: 'conditional',
+        appliesWhen: 'Almost always, for a business run from home.',
+        formNumber: null,
+        agency: profile.city || 'Your city',
+        url: null,
+        estimatedCost: UNCONFIRMED,
+      },
+    ];
+  }
+
+  const requirementLabel: Record<string, Requirement> = {
+    required: 'required',
+    'exempt-if-low-impact': 'conditional',
+    conditional: 'conditional',
+  };
+
+  const tasks: ComplianceTask[] = [
+    {
+      id: 'local-business-licence',
+      jurisdiction: 'city',
+      title:
+        city.requirement === 'exempt-if-low-impact'
+          ? `${city.city}: a licence may not be required for a quiet home business`
+          : `${city.city}: get a city business licence`,
+      detail: [
+        city.summary,
+        city.homeBusinessFee ? `Fee: ${city.homeBusinessFee}` : `Fee: could not be read from the city's published schedule — ask them.`,
+        city.renewal ? `Renewal: ${city.renewal}` : '',
+      ].filter(Boolean).join(' '),
+      requirement: requirementLabel[city.requirement] ?? 'conditional',
+      appliesWhen:
+        city.requirement === 'exempt-if-low-impact'
+          ? 'Required once the business stops qualifying as a minor or low-impact home occupation.'
+          : 'You operate from an address in this city.',
+      formNumber: null,
+      agency: `${city.city} City`,
+      url: city.url,
+      estimatedCost: city.homeBusinessFee ?? UNCONFIRMED,
+    },
+  ];
+
+  if (city.watchOut.length > 0) {
+    tasks.push({
+      id: 'local-home-occupation',
+      jurisdiction: 'city',
+      title: `${city.city}: home occupation rules to check`,
+      detail: city.watchOut.join(' '),
+      requirement: 'required',
+      appliesWhen: 'You operate from home.',
+      formNumber: null,
+      agency: `${city.city} City`,
+      url: city.url,
+      estimatedCost: null,
+    });
+  }
+
   return tasks;
 }
 
