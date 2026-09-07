@@ -20,6 +20,7 @@ import { cogsForYear } from '../reports/cogs.js';
 import { inventoryAsOf } from '../reports/inventory.js';
 import { capitalGainsForYear, investmentSchedule } from '../reports/capitalGains.js';
 import { scheduleCWorksheet } from '../reports/scheduleCWorksheet.js';
+import { exportYear } from '../reports/export.js';
 import { estimatedTaxPlan } from '../tax/estimatedTax.js';
 import { selfEmploymentTax, setAsideGuidance } from '../tax/selfEmployment.js';
 import { availableYears, figureHealth, taxYear } from '../tax/registry.js';
@@ -520,6 +521,27 @@ api.get('/reports/estimated-tax', handle((req, res) => {
     figuresNeedingCheck: worksheet.figuresNeedingCheck,
     hasFigures: figures !== null,
   });
+}));
+
+// ---------------------------------------------------------------------------
+// Export
+// ---------------------------------------------------------------------------
+
+api.get('/export/:year', handle((req, res) => {
+  const year = Number(req.params.year);
+  if (!Number.isFinite(year)) return fail(res, 400, 'Invalid year');
+  res.json({ year, files: exportYear(year) });
+}));
+
+/** A single CSV, for downloading one table straight into a spreadsheet. */
+api.get('/export/:year/:file', handle((req, res) => {
+  const year = Number(req.params.year);
+  const files = exportYear(year);
+  const name = Object.keys(files).find((f) => f.includes(String(req.params.file)));
+  if (!name) return fail(res, 404, `No export file matching "${req.params.file}"`);
+  res.setHeader('Content-Type', name.endsWith('.json') ? 'application/json' : 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${name}"`);
+  res.send(files[name]);
 }));
 
 // ---------------------------------------------------------------------------

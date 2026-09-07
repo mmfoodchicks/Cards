@@ -146,43 +146,61 @@ const UTAH: ComplianceTask[] = [
   {
     id: 'ut-dba',
     jurisdiction: 'state',
-    title: 'Register a DBA (assumed business name), if trading under a name',
+    title: 'Register a DBA, if you trade under a business name',
     detail:
-      'A sole proprietor trading under their own legal name generally does not need to register anything. ' +
-      'Trading under a business name means registering that name with the Utah Division of Corporations. ' +
-      UNCONFIRMED,
+      'Trading under your own legal name needs no filing at all. Using any trade name means registering an ' +
+      'assumed name with the Utah Division of Corporations. Registration is $22 and it runs for THREE years, ' +
+      'not one — renewal is $18. Several popular guides quote $27 for the renewal; the Division’s own fee ' +
+      'schedule says $18.',
     requirement: 'conditional',
     appliesWhen: 'You use a business name that is not your own legal name.',
     formNumber: null,
     agency: 'Utah Division of Corporations and Commercial Code',
-    url: 'https://corporations.utah.gov/',
-    estimatedCost: UNCONFIRMED,
+    url: 'https://commerce.utah.gov/corporations/business-entities/dba/',
+    estimatedCost: '$22 to register, $18 every three years',
   },
   {
     id: 'ut-sales-tax-licence',
     jurisdiction: 'state',
     title: 'Get a Utah sales tax licence',
     detail:
-      'Selling tangible goods in Utah generally requires a sales tax licence, obtained through the Utah State ' +
-      'Tax Commission. This matters even when marketplaces collect tax for you, because in-person sales at ' +
-      'card shows are yours to collect and remit. ' + UNCONFIRMED,
+      'Storing card inventory at home is a physical presence in Utah, so the $100,000 economic nexus threshold ' +
+      'does not shelter you — that test is for out-of-state sellers. You need a licence as soon as you make ' +
+      'taxable retail sales in Utah outside a marketplace, which in practice means the first cash sale at a ' +
+      'show. It is free, applied for online, and the licence is not transferable.',
     requirement: 'conditional',
-    appliesWhen: 'You make sales in Utah that a marketplace does not collect tax on — card shows, local sales.',
+    appliesWhen: 'You make any sale in Utah that a marketplace does not collect tax on — card shows, local sales.',
     formNumber: 'TC-69',
     agency: 'Utah State Tax Commission',
-    url: 'https://tax.utah.gov/sales',
-    estimatedCost: UNCONFIRMED,
+    url: 'https://tap.utah.gov',
+    estimatedCost: 'Free',
+  },
+  {
+    id: 'ut-trust-fund',
+    jurisdiction: 'state',
+    title: 'Keep collected sales tax separate from your own money',
+    detail:
+      'Sales tax you collect is a TRUST FUND tax: you hold it for the state until you remit it, and it may not ' +
+      'be used for anything else in the meantime. Personal liability attaches to it, which means it does not ' +
+      'go away if the business does. Move it out of the operating account the day you collect it.',
+    requirement: 'required',
+    appliesWhen: 'You collect any sales tax yourself.',
+    formNumber: null,
+    agency: 'Utah State Tax Commission',
+    url: 'https://files.tax.utah.gov/tax/forms/pubs/pub-25.pdf',
+    estimatedCost: 'Free',
   },
   {
     id: 'ut-resale-certificate',
     jurisdiction: 'state',
     title: 'Use a resale exemption certificate when buying inventory',
     detail:
-      'Buying goods you intend to resell can be exempt from sales tax, using an exemption certificate given to ' +
-      'the seller. The saving is real and immediate on wholesale purchases. It applies only to genuine resale ' +
-      'inventory — using it for supplies you consume, or for a card you keep, is not allowed. ' + UNCONFIRMED,
+      'Buying stock you intend to resell can be exempt from sales tax by giving the seller an exemption ' +
+      'certificate. Worth real money on wholesale purchases. It covers genuine resale inventory only — not ' +
+      'supplies you use up, and not a card you decide to keep. Misusing it is the kind of thing that gets ' +
+      'noticed on audit.',
     requirement: 'recommended',
-    appliesWhen: 'You buy inventory from distributors or dealers who collect Utah sales tax.',
+    appliesWhen: 'You buy inventory from distributors or dealers who charge Utah sales tax.',
     formNumber: 'TC-721',
     agency: 'Utah State Tax Commission',
     url: 'https://tax.utah.gov/forms',
@@ -191,40 +209,57 @@ const UTAH: ComplianceTask[] = [
   {
     id: 'ut-sales-tax-return',
     jurisdiction: 'state',
-    title: 'File Utah sales tax returns',
+    title: 'File Utah sales tax returns on your assigned schedule',
     detail:
-      'Once you hold a sales tax licence you must file returns on the schedule the Tax Commission assigns, ' +
-      'even for periods with no sales. A zero return still has to be filed. ' + UNCONFIRMED,
+      'Once you hold a licence you file on the schedule the Tax Commission assigns, and a period with no sales ' +
+      'still needs a zero return. Missing them is what turns a small tax bill into penalties.',
     requirement: 'conditional',
     appliesWhen: 'You hold a Utah sales tax licence.',
     formNumber: 'TC-62S or TC-62M',
     agency: 'Utah State Tax Commission',
     url: 'https://tax.utah.gov/sales',
-    estimatedCost: 'The tax collected',
+    estimatedCost: 'The tax you collected',
+  },
+  {
+    id: 'ut-show-rate',
+    jurisdiction: 'state',
+    title: 'Charge the SHOW’s rate at a show, not your home rate',
+    detail:
+      'Utah sources a sale at a temporary event to where the event is. A Layton seller at a Sunset show charges ' +
+      '7.15%, not Layton’s 7.25%. Rates across Davis County differ only by a 0.10% municipal tax, so the ' +
+      'amounts are small — but collecting the wrong rate is still collecting the wrong amount. Rates change ' +
+      'quarterly, so check the chart before each event.',
+    requirement: 'required',
+    appliesWhen: 'You sell in person at shows or other temporary events.',
+    formNumber: null,
+    agency: 'Utah State Tax Commission',
+    url: 'https://tax.utah.gov/sales/rates',
+    estimatedCost: 'Free',
   },
   {
     id: 'ut-income-tax',
     jurisdiction: 'state',
     title: 'File a Utah individual income tax return',
     detail:
-      'Utah taxes individual income at a flat rate, and business profit flows through to your personal return. ' + UNCONFIRMED,
+      'Utah taxes individual income at a flat 4.45% for 2026, down from 4.50% for 2025. It starts from federal ' +
+      'adjusted gross income, so Schedule C profit flows straight through with no separate state business ' +
+      'return. The rate has been cut in most recent years, so it is worth re-checking annually.',
     requirement: 'required',
     appliesWhen: null,
     formNumber: 'TC-40',
     agency: 'Utah State Tax Commission',
-    url: 'https://incometax.utah.gov/',
-    estimatedCost: 'The tax itself',
+    url: 'https://incometax.utah.gov/paying/tax-rates',
+    estimatedCost: '4.45% of taxable income for 2026',
   },
   {
     id: 'ut-personal-property',
     jurisdiction: 'county',
     title: 'Check business personal property tax with Davis County',
     detail:
-      'Utah counties assess tax on business equipment and, in some cases, other business personal property. ' +
-      'There is usually a de minimis exemption for small businesses, but it generally has to be claimed rather ' +
-      'than applying automatically. ' + UNCONFIRMED,
+      'Utah counties assess tax on business equipment. There is generally a small-business exemption, but it ' +
+      'usually has to be claimed rather than applying automatically. ' + UNCONFIRMED,
     requirement: 'conditional',
-    appliesWhen: 'You own business equipment.',
+    appliesWhen: 'You own business equipment such as a printer, display cases or a computer used for the business.',
     formNumber: null,
     agency: 'Davis County Assessor',
     url: 'https://www.daviscountyutah.gov/assessor',
@@ -235,11 +270,12 @@ const UTAH: ComplianceTask[] = [
     jurisdiction: 'city',
     title: 'Get a city business licence',
     detail:
-      'Most Utah cities require a business licence, including for home-based businesses, and the rules and fees ' +
-      'differ city by city. This is the requirement people running online businesses from home most often miss. ' +
-      'Check with your own city — a neighbouring city’s rules do not apply to you. ' + UNCONFIRMED,
+      'Most Utah cities license businesses, including home-based ones, and the fees and rules differ city by ' +
+      'city. This is the requirement online sellers most often miss, because nothing about selling on eBay ' +
+      'feels like it should involve city hall. Check with YOUR city — a neighbouring city’s rules do not ' +
+      'apply to you. ' + UNCONFIRMED,
     requirement: 'conditional',
-    appliesWhen: 'Your city requires a licence for home-based businesses. Most do.',
+    appliesWhen: 'Your city requires a licence for home-based businesses. Most Utah cities do.',
     formNumber: null,
     agency: 'Your city',
     url: null,
@@ -250,29 +286,14 @@ const UTAH: ComplianceTask[] = [
     jurisdiction: 'city',
     title: 'Check home occupation and zoning rules',
     detail:
-      'Cities that allow home businesses usually attach conditions: no customer traffic, no signage, limits on ' +
-      'the share of the home used, no outside employees, restrictions on storage and deliveries. A card business ' +
-      'run from a spare room typically fits comfortably, but the permit is often still required. ' + UNCONFIRMED,
+      'Cities that allow home businesses attach conditions: no customer traffic, no signage, limits on the ' +
+      'share of the home used, no outside employees, restrictions on deliveries and storage. A card business ' +
+      'in a spare room usually fits comfortably, but the permit is often still required. ' + UNCONFIRMED,
     requirement: 'conditional',
     appliesWhen: 'You operate from home.',
     formNumber: null,
     agency: 'Your city planning or zoning department',
     url: null,
-    estimatedCost: UNCONFIRMED,
-  },
-  {
-    id: 'local-temporary-event',
-    jurisdiction: 'state',
-    title: 'Check what a card show requires of you as a vendor',
-    detail:
-      'Selling in person at a show usually means collecting sales tax at the rate for that location and remitting ' +
-      'it. Some events are handled by the promoter, some are not, and a temporary licence may be needed. ' +
-      'Ask the promoter before the event rather than after. ' + UNCONFIRMED,
-    requirement: 'conditional',
-    appliesWhen: 'You sell at card shows, conventions or other temporary events.',
-    formNumber: null,
-    agency: 'Utah State Tax Commission',
-    url: 'https://tax.utah.gov/sales/temporary',
     estimatedCost: UNCONFIRMED,
   },
 ];

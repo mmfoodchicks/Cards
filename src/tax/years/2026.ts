@@ -232,6 +232,19 @@ export const FIGURES_2026: TaxYearFigures = {
         '$201,750 for 2026. Below this, a 20% deduction on qualified business income with no wage limit. ' +
         'Claimed on Form 8995, not on Schedule C.',
     }),
+    'utah.incomeTaxRate': figure({
+      key: 'utah.incomeTaxRate',
+      label: 'Utah individual income tax rate',
+      value: 0.0445,
+      year: 2026,
+      kind: 'indexed',
+      authority: 'Utah Code 59-10-104(2)(b), as amended by S.B. 60 (2026 General Session)',
+      source: 'https://le.utah.gov/Session/2026/bills/enrolled/SB0060.pdf',
+      confidence: 'verified',
+      note:
+        '4.45% for 2026, down from 4.50% for 2025. Utah has cut this rate repeatedly, so it must be re-checked ' +
+        'each year. Utah starts from federal adjusted gross income, so Schedule C profit flows straight through.',
+    }),
     'homeOffice.simplifiedRatePerSqFt': figure({
       key: 'homeOffice.simplifiedRatePerSqFt',
       label: 'Home office simplified method rate, per square foot',
