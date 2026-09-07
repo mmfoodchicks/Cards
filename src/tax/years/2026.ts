@@ -24,8 +24,12 @@ const IRS_SE = 'https://www.irs.gov/businesses/small-businesses-self-employed/se
 
 export const FIGURES_2026: TaxYearFigures = {
   year: 2026,
-  reviewed: false,
-  reviewedOn: null,
+  // Every figure below carries confidence 'verified', meaning it was checked
+  // against the primary source named in it — not a summary of that source, and
+  // not last year's value carried forward. Set this back to false the moment a
+  // figure is added that has not been.
+  reviewed: true,
+  reviewedOn: '2026-09-07',
   brackets: {
     // Transcribed from Rev. Proc. 2025-32, section .01 (Tax Rate Tables), which
     // is the primary source rather than a summary of it. Each schedule was
