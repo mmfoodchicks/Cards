@@ -1,0 +1,230 @@
+/*
+ * Mobile first. Half of what this app does happens standing at a card show
+ * with a phone in one hand, so entering a purchase has to work with a thumb.
+ * Wider screens get more columns, not a different design.
+ */
+
+:root {
+  --bg: #101418;
+  --surface: #181d24;
+  --surface-2: #212832;
+  --border: #2c343f;
+  --text: #e9eef5;
+  --text-dim: #9aa6b6;
+  --text-faint: #6c7889;
+
+  --accent: #4f9cf9;
+  --accent-dim: #1e3350;
+  --good: #3fcf8e;
+  --good-bg: #102e21;
+  --warn: #f5b544;
+  --warn-bg: #3a2c0c;
+  --bad: #f2686a;
+  --bad-bg: #3a1618;
+
+  --radius: 12px;
+  --gap: 12px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior-y: none;
+}
+
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.app {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 var(--gap) calc(88px + env(safe-area-inset-bottom));
+}
+
+/* --- header ------------------------------------------------------------ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: linear-gradient(180deg, var(--bg) 80%, transparent);
+  padding: calc(12px + env(safe-area-inset-top)) 0 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.brand { font-weight: 700; font-size: 17px; letter-spacing: -0.2px; }
+.brand span { color: var(--text-faint); font-weight: 500; font-size: 12px; margin-left: 6px; }
+.year-pick {
+  margin-left: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 5px 9px;
+  font-size: 13px;
+}
+
+/* --- layout primitives -------------------------------------------------- */
+.section { margin-top: 22px; }
+.section > h2 { font-size: 15px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.2px; }
+.section > p.sub { margin: 0 0 12px; color: var(--text-dim); font-size: 13px; }
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+.panel + .panel { margin-top: var(--gap); }
+.panel h3 { font-size: 14px; margin: 0 0 10px; font-weight: 700; }
+
+.grid { display: grid; gap: var(--gap); grid-template-columns: 1fr; }
+@media (min-width: 700px) { .grid.two { grid-template-columns: repeat(2, 1fr); } }
+@media (min-width: 980px) { .grid.three { grid-template-columns: repeat(3, 1fr); } }
+
+.muted { color: var(--text-dim); font-size: 13px; }
+.faint { color: var(--text-faint); font-size: 12px; line-height: 1.45; }
+
+/* --- stat tiles --------------------------------------------------------- */
+.stats { display: grid; gap: 10px; grid-template-columns: repeat(2, 1fr); }
+@media (min-width: 700px) { .stats { grid-template-columns: repeat(4, 1fr); } }
+.stat {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+.stat .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-faint); }
+.stat .value { font-size: 21px; font-weight: 700; letter-spacing: -0.5px; margin-top: 4px; }
+.stat .value.good { color: var(--good); }
+.stat .value.bad { color: var(--bad); }
+.stat .note { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
+
+/* --- banners ------------------------------------------------------------ */
+.banner {
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-top: var(--gap);
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-dim);
+}
+.banner.warn { background: var(--warn-bg); border-color: #4c3a10; color: var(--warn); }
+.banner.bad { background: var(--bad-bg); border-color: #4c1d1f; color: var(--bad); }
+.banner.good { background: var(--good-bg); border-color: #14402c; color: var(--good); }
+.banner strong { color: inherit; }
+.banner ul { margin: 8px 0 0; padding-left: 18px; }
+.banner li { margin-bottom: 4px; }
+
+/* --- forms -------------------------------------------------------------- */
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+.field label { font-size: 12px; color: var(--text-dim); font-weight: 600; }
+.field input, .field select, .field textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 10px 11px;
+  outline: none;
+  width: 100%;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+.field .hint { font-size: 11px; color: var(--text-faint); }
+.row { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+.row.three { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 560px) { .row.three { grid-template-columns: 1fr 1fr; } }
+
+.switch { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; font-size: 13px; }
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); flex: 0 0 auto; }
+
+.btn {
+  background: var(--accent);
+  border: 0;
+  border-radius: 10px;
+  color: #06121f;
+  font-weight: 700;
+  padding: 11px 16px;
+  cursor: pointer;
+}
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); font-weight: 600; }
+.btn.danger { background: transparent; color: var(--bad); border: 1px solid #4c1d1f; font-weight: 600; }
+.btn.small { padding: 7px 11px; font-size: 13px; border-radius: 8px; }
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* --- tables ------------------------------------------------------------- */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left; color: var(--text-faint); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.4px; padding: 8px; font-weight: 600;
+  white-space: nowrap;
+}
+td { padding: 9px 8px; border-top: 1px solid var(--border); vertical-align: top; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.total td { border-top: 2px solid var(--border); font-weight: 700; }
+
+/* --- misc --------------------------------------------------------------- */
+.pill {
+  display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.4px; padding: 3px 7px; border-radius: 5px;
+  background: var(--surface-2); color: var(--text-dim);
+}
+.pill.required { background: var(--bad-bg); color: var(--bad); }
+.pill.conditional { background: var(--warn-bg); color: var(--warn); }
+.pill.recommended { background: var(--surface-2); color: var(--text-dim); }
+.pill.done { background: var(--good-bg); color: var(--good); }
+.pill.investment { background: #2a2140; color: #c0a6ff; }
+
+.list-item {
+  border-top: 1px solid var(--border);
+  padding: 11px 0;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.list-item:first-child { border-top: 0; }
+.list-item .grow { flex: 1; min-width: 0; }
+.list-item .amount { font-variant-numeric: tabular-nums; font-weight: 600; white-space: nowrap; }
+
+.empty { text-align: center; padding: 44px 20px; color: var(--text-faint); }
+.empty .big { font-size: 32px; margin-bottom: 10px; }
+
+.spinner {
+  width: 18px; height: 18px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* --- bottom nav --------------------------------------------------------- */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+  display: flex;
+  background: rgba(16, 20, 24, 0.95);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid var(--border);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.tabbar button {
+  flex: 1; background: none; border: 0; padding: 9px 2px 11px;
+  color: var(--text-faint); font-size: 10px; font-weight: 600;
+  display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
+}
+.tabbar button .ico { font-size: 18px; line-height: 1; }
+.tabbar button[aria-current='page'] { color: var(--accent); }
+
+.source-link { font-size: 11px; color: var(--text-faint); }
+.source-link a { color: var(--text-faint); text-decoration: underline; }

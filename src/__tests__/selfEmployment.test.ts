@@ -71,20 +71,49 @@ describe('self-employment tax', () => {
     expect(result.deductionCents).toBe(0);
   });
 
-  it('reports which figures behind the number are not fully verified', () => {
+  it('reports any figure behind the number that is not fully verified', () => {
     const result = selfEmploymentTax({ netProfitCents: 2000000, filingStatus: 'single' }, year);
-    // The wage base is indexed annually and was found via secondary reporting.
-    expect(result.unverified.join(' ')).toMatch(/wage base/i);
+    // Currently every figure it uses is confirmed against a primary source, so
+    // there is nothing to warn about. If a future year's wage base is added
+    // from secondary reporting, this list is how the user finds out.
+    expect(result.unverified).toEqual([]);
+
+    const shaky = {
+      ...year,
+      figures: {
+        ...year.figures,
+        'se.socialSecurityWageBase': { ...year.figures['se.socialSecurityWageBase']!, confidence: 'reported' as const },
+      },
+    };
+    expect(selfEmploymentTax({ netProfitCents: 2000000, filingStatus: 'single' }, shaky).unverified.join(' '))
+      .toMatch(/wage base/i);
   });
 });
 
 describe('unverified figures', () => {
   it('refuses to compute from a figure that was never confirmed', () => {
     // The alternative is a confident wrong answer on a tax return.
-    const rate = FIGURES_2026.figures['vehicle.standardMileageRate']!;
-    expect(rate.confidence).toBe('unverified');
-    expect(() => valueOf(rate)).toThrow(UnverifiedFigureError);
-    expect(() => valueOf(rate)).toThrow(/has not been verified/i);
+    const unconfirmed = {
+      key: 'test.unconfirmed',
+      label: 'Something nobody checked',
+      value: 123,
+      year: 2026,
+      kind: 'indexed' as const,
+      authority: 'Unknown',
+      source: 'https://example.invalid',
+      confidence: 'unverified' as const,
+    };
+    expect(() => valueOf(unconfirmed)).toThrow(UnverifiedFigureError);
+    expect(() => valueOf(unconfirmed)).toThrow(/has not been verified/i);
+  });
+
+  it('flags every figure that is not fully verified so the UI can show it', () => {
+    const shaky = Object.values(FIGURES_2026.figures).filter((f) => f.confidence !== 'verified');
+    // Indexed figures are the dangerous ones; each must carry a source to check.
+    for (const f of shaky) {
+      expect(f.source, f.key).toMatch(/^https?:\/\//);
+      expect(f.authority, f.key).not.toBe('');
+    }
   });
 });
 

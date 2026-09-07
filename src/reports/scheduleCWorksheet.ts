@@ -52,7 +52,6 @@ export function scheduleCWorksheet(year: number, db: Db = getDb()): ScheduleCWor
     );
   }
 
-  const mileageRate = figureValue(year, 'vehicle.standardMileageRate');
   const mealsPercent = figureValue(year, 'meals.deductiblePercent');
 
   const home = homeOfficeDeduction(
@@ -63,7 +62,6 @@ export function scheduleCWorksheet(year: number, db: Db = getDb()): ScheduleCWor
   const pl = profitAndLoss(
     year,
     {
-      mileageRateCentsPerMile: mileageRate,
       mealsDeductiblePercent: mealsPercent,
       homeOfficeCents: home?.deductionCents ?? 0,
     },

@@ -21,6 +21,7 @@ import type { Db } from '../db/index.js';
 import { getDb } from '../db/index.js';
 import { ACCOUNTS_BY_KEY, SCHEDULE_C_LINES } from '../tax/scheduleC.js';
 import { cogsForYear, cogsMaterialsMethod, type CogsReport } from './cogs.js';
+import { mileageDeduction, type MileageDeduction } from '../tax/mileage.js';
 import { getProfile } from '../db/repos.js';
 import type { InventoryMethod } from '../domain/types.js';
 
@@ -65,6 +66,8 @@ export interface ProfitLossReport {
   netProfitCents: Cents;
 
   cogs: CogsReport;
+  /** Mileage broken out by rate period, since the rate can change mid-year. */
+  mileage: MileageDeduction;
   /** Sales tax collected and owed onward. Not income; shown so it is not spent. */
   salesTaxCollectedCents: Cents;
   salesTaxRemittedByPlatformCents: Cents;
@@ -73,8 +76,6 @@ export interface ProfitLossReport {
 }
 
 export interface ProfitLossOptions {
-  /** Standard mileage rate in cents per mile, when a verified figure exists. */
-  mileageRateCentsPerMile?: number | null;
   /** Deductible share of business meals, e.g. 0.5. */
   mealsDeductiblePercent?: number | null;
   /** Home office deduction in cents, computed elsewhere. */
@@ -180,30 +181,36 @@ export function profitAndLoss(
   }
 
   // --- Mileage ------------------------------------------------------------
-  const miles = (db.prepare(`
-    SELECT COALESCE(SUM(CASE WHEN round_trip = 1 THEN miles * 2 ELSE miles END), 0) AS total
+  // Valued day by day, because the standard rate can change mid-year and did
+  // in 2026. A single annual rate would understate half the year's trips.
+  const trips = db.prepare(`
+    SELECT driven_on AS drivenOn, miles, round_trip AS roundTrip
     FROM mileage_trips WHERE driven_on BETWEEN @from AND @to
-  `).get({ from, to }) as { total: number }).total;
+  `).all({ from, to }) as Array<{ drivenOn: string; miles: number; roundTrip: number }>;
 
-  if (miles > 0) {
-    const rate = options.mileageRateCentsPerMile;
-    if (rate === null || rate === undefined) {
-      warnings.push(
-        `${miles.toFixed(1)} business miles are logged but the standard mileage rate for ${year} has not been ` +
-          'verified, so no vehicle deduction is included. That deduction is usually worth real money — ' +
-          'confirm the rate and it will appear here.',
-      );
-    } else {
-      push({
-        line: '9',
-        title: SCHEDULE_C_LINES['9']!.title,
-        accountKey: 'vehicle',
-        accountName: 'Vehicle',
-        grossCents: Math.round(miles * rate),
-        deductibleCents: Math.round(miles * rate),
-        limitNote: `${miles.toFixed(1)} miles at the standard mileage rate.`,
-      });
-    }
+  const mileage = mileageDeduction(trips.map((t) => ({ ...t, roundTrip: t.roundTrip === 1 })));
+
+  if (mileage.deductionCents > 0) {
+    push({
+      line: '9',
+      title: SCHEDULE_C_LINES['9']!.title,
+      accountKey: 'vehicle',
+      accountName: 'Vehicle',
+      grossCents: mileage.deductionCents,
+      deductibleCents: mileage.deductionCents,
+      limitNote:
+        mileage.bands.length > 1
+          ? mileage.bands
+              .map((b) => `${b.miles.toFixed(1)} mi at ${b.centsPerMile}c (${b.from} to ${b.to})`)
+              .join('; ')
+          : `${mileage.totalMiles.toFixed(1)} miles at ${mileage.bands[0]?.centsPerMile ?? 0}c per mile.`,
+    });
+  }
+  if (mileage.unratedMiles > 0) {
+    warnings.push(
+      `${mileage.unratedMiles.toFixed(1)} business miles were driven on dates with no standard mileage rate on ` +
+        'file, so they are not deducted. Add the rate for those dates and the deduction will appear.',
+    );
   }
 
   const expenseLines = [...byLine.values()].sort((a, b) => a.line.localeCompare(b.line, 'en', { numeric: true }));
@@ -245,6 +252,7 @@ export function profitAndLoss(
     homeOfficeCents: homeOffice,
     netProfitCents: netProfit,
     cogs,
+    mileage,
     salesTaxCollectedCents: sales.taxSelfCollected!,
     salesTaxRemittedByPlatformCents: sales.taxPlatformCollected!,
     warnings,

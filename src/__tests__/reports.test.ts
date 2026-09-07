@@ -217,20 +217,42 @@ describe('profit and loss', () => {
     expect(pl.warnings.join(' ')).toMatch(/belongs to the state/i);
   });
 
-  it('notes logged mileage that cannot be deducted without a verified rate', async () => {
+  it('values mileage at the rate in force on the day it was driven', async () => {
     const { createTrip } = await import('../db/repos.js');
+    // The 2026 rate rose from 72.5c to 76c on 1 July, so a single annual rate
+    // would misstate both of these trips.
     createTrip(
       { drivenOn: '2026-05-01', purpose: 'Card show', fromLocation: 'Home', toLocation: 'Layton',
         miles: 40, roundTrip: true, odometerStart: null, odometerEnd: null, notes: null },
       db,
     );
-    const withoutRate = profitAndLoss(2026, {}, db);
-    expect(withoutRate.warnings.join(' ')).toMatch(/standard mileage rate/i);
+    createTrip(
+      { drivenOn: '2026-08-01', purpose: 'Card show', fromLocation: 'Home', toLocation: 'Ogden',
+        miles: 100, roundTrip: false, odometerStart: null, odometerEnd: null, notes: null },
+      db,
+    );
 
-    const withRate = profitAndLoss(2026, { mileageRateCentsPerMile: 70 }, db);
-    const vehicle = withRate.expenseLines.find((l) => l.accountKey === 'vehicle')!;
-    // 40 miles each way.
-    expect(vehicle.deductibleCents).toBe(5600);
+    const pl = profitAndLoss(2026, {}, db);
+    expect(pl.mileage.totalMiles).toBe(180);
+    expect(pl.mileage.bands).toHaveLength(2);
+    // 80 miles at 72.5c plus 100 miles at 76c.
+    expect(pl.mileage.deductionCents).toBe(5800 + 7600);
+    const vehicle = pl.expenseLines.find((l) => l.accountKey === 'vehicle')!;
+    expect(vehicle.deductibleCents).toBe(13400);
+    expect(vehicle.limitNote).toMatch(/72\.5c/);
+  });
+
+  it('leaves out miles driven on dates with no rate on file, and says so', async () => {
+    const { createTrip } = await import('../db/repos.js');
+    createTrip(
+      { drivenOn: '2031-05-01', purpose: 'Future show', fromLocation: null, toLocation: null,
+        miles: 50, roundTrip: false, odometerStart: null, odometerEnd: null, notes: null },
+      db,
+    );
+    const pl = profitAndLoss(2031, {}, db);
+    expect(pl.mileage.deductionCents).toBe(0);
+    expect(pl.mileage.unratedMiles).toBe(50);
+    expect(pl.warnings.join(' ')).toMatch(/no standard mileage rate on file/i);
   });
 });
 

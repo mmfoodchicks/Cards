@@ -70,7 +70,9 @@ export const FIGURES_2026: TaxYearFigures = {
       authority: 'IRC 1402(b)(2)',
       source: IRS_SE,
       confidence: 'verified',
-      note: '$400. Below this, no self-employment tax — but the income is still reported.',
+      note:
+        '$400. This is a cliff, not an allowance: at $400 of net earnings the whole $400 is taxed, not the ' +
+        'excess. Because the test applies after the 92.35% adjustment, about $433 of profit triggers it.',
     }),
     'se.additionalMedicareRate': figure({
       key: 'se.additionalMedicareRate',
@@ -121,12 +123,12 @@ export const FIGURES_2026: TaxYearFigures = {
       value: 18450000,
       year: 2026,
       kind: 'indexed',
-      authority: 'SSA announcement, 24 October 2025',
-      source: 'https://www.ssa.gov/oact/cola/cbb.html',
-      confidence: 'reported',
+      authority: 'IRS Publication 926 (for use in 2026); SSA taxable maximum',
+      source: 'https://www.irs.gov/pub/irs-pdf/p926.pdf',
+      confidence: 'verified',
       note:
-        '$184,500 for 2026. Found via secondary reporting; ssa.gov refused an automated request, so confirm ' +
-        'against the SSA page before filing. Only the Social Security portion is capped — Medicare is uncapped.',
+        '$184,500 for 2026, up from $176,100 for 2025. Only the Social Security portion is capped — the ' +
+        'Medicare portion has no ceiling.',
     }),
 
     // --- Collectibles -----------------------------------------------------
@@ -176,26 +178,13 @@ export const FIGURES_2026: TaxYearFigures = {
       kind: 'indexed',
       authority: 'IRC 448(c), applied through IRC 471(c) and 263A(i); Rev. Proc. 2025-32',
       source: 'https://www.irs.gov/pub/irs-drop/rp-25-32.pdf',
-      confidence: 'reported',
+      confidence: 'verified',
       note:
         '$32,000,000 average annual gross receipts for 2026. A new card reseller is nowhere near it, so the ' +
         'simplified inventory treatment and exemption from uniform capitalisation both apply.',
     }),
 
     // --- Figures still to confirm -----------------------------------------
-    'vehicle.standardMileageRate': figure({
-      key: 'vehicle.standardMileageRate',
-      label: 'Standard mileage rate (cents per mile)',
-      value: 0,
-      year: 2026,
-      kind: 'indexed',
-      authority: 'Announced annually by the IRS in a notice',
-      source: 'https://www.irs.gov/tax-professionals/standard-mileage-rates',
-      confidence: 'unverified',
-      note:
-        'Set every year and worth real money on show trips. Until it is confirmed, mileage is logged but not ' +
-        'deducted, and the app says so rather than guessing.',
-    }),
     'meals.deductiblePercent': figure({
       key: 'meals.deductiblePercent',
       label: 'Deductible share of business meals',
@@ -204,10 +193,44 @@ export const FIGURES_2026: TaxYearFigures = {
       kind: 'statutory',
       authority: 'IRC 274(n)',
       source: 'https://www.irs.gov/publications/p463',
-      confidence: 'reported',
+      confidence: 'verified',
       note:
-        'Generally 50%. The temporary 100% allowance for restaurant meals applied only to 2021 and 2022. ' +
-        'Confirm before relying on it.',
+        '50% for 2026. The temporary 100% allowance for restaurant meals applied only to 2021 and 2022 and ' +
+        'was not restored. Entertainment is not deductible at all — there is no 50% fallback for it.',
+    }),
+    'deduction.standard.single': figure({
+      key: 'deduction.standard.single',
+      label: 'Standard deduction (single)',
+      value: 1610000,
+      year: 2026,
+      kind: 'indexed',
+      authority: 'Rev. Proc. 2025-32',
+      source: 'https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill',
+      confidence: 'verified',
+      note: '$16,100 for 2026. Relevant because most sellers will not itemise, which affects charitable donations of cards.',
+    }),
+    'deduction.standard.marriedJoint': figure({
+      key: 'deduction.standard.marriedJoint',
+      label: 'Standard deduction (married filing jointly)',
+      value: 3220000,
+      year: 2026,
+      kind: 'indexed',
+      authority: 'Rev. Proc. 2025-32',
+      source: 'https://www.irs.gov/newsroom/irs-releases-tax-inflation-adjustments-for-tax-year-2026-including-amendments-from-the-one-big-beautiful-bill',
+      confidence: 'verified',
+    }),
+    'qbi.threshold.single': figure({
+      key: 'qbi.threshold.single',
+      label: 'Qualified business income deduction threshold (single)',
+      value: 20175000,
+      year: 2026,
+      kind: 'indexed',
+      authority: 'IRC 199A; Rev. Proc. 2025-32',
+      source: 'https://www.irs.gov/newsroom/qualified-business-income-deduction',
+      confidence: 'verified',
+      note:
+        '$201,750 for 2026. Below this, a 20% deduction on qualified business income with no wage limit. ' +
+        'Claimed on Form 8995, not on Schedule C.',
     }),
     'homeOffice.simplifiedRatePerSqFt': figure({
       key: 'homeOffice.simplifiedRatePerSqFt',
@@ -217,8 +240,8 @@ export const FIGURES_2026: TaxYearFigures = {
       kind: 'statutory',
       authority: 'Rev. Proc. 2013-13',
       source: 'https://www.irs.gov/businesses/small-businesses-self-employed/simplified-option-for-home-office-deduction',
-      confidence: 'reported',
-      note: '$5 per square foot. Unchanged since the simplified method was introduced, but confirm before filing.',
+      confidence: 'verified',
+      note: '$5 per square foot, so the most this method can ever produce is $1,500 a year.',
     }),
     'homeOffice.maxSquareFeet': figure({
       key: 'homeOffice.maxSquareFeet',
@@ -228,7 +251,7 @@ export const FIGURES_2026: TaxYearFigures = {
       kind: 'statutory',
       authority: 'Rev. Proc. 2013-13',
       source: 'https://www.irs.gov/businesses/small-businesses-self-employed/simplified-option-for-home-office-deduction',
-      confidence: 'reported',
+      confidence: 'verified',
       note: '300 square feet, capping the deduction at $1,500.',
     }),
     'deminimis.safeHarbor': figure({
@@ -239,10 +262,10 @@ export const FIGURES_2026: TaxYearFigures = {
       kind: 'statutory',
       authority: 'Treas. Reg. 1.263(a)-1(f)',
       source: 'https://www.irs.gov/businesses/small-businesses-self-employed/tangible-property-final-regulations',
-      confidence: 'reported',
+      confidence: 'verified',
       note:
-        '$2,500 per item or invoice. Requires a written accounting policy in place at the start of the year, ' +
-        'and the election is made annually on the return.',
+        '$2,500 per item or invoice for a taxpayer with no applicable financial statement. Requires a written ' +
+        'accounting policy in place at the START of the year; the election is then made annually on the return.',
     }),
   },
 };
