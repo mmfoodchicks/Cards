@@ -262,6 +262,35 @@ records, rather than in January when they have to be reconstructed.
 
 ---
 
+## Grading fees
+
+**If you hold the card as investment, there is no choice.** Grading goes into the
+card's basis. Reg. 1.212-1(k) treats costs of "developing or improving property"
+as part of the property's cost, and IRC 67(h) — made permanent by the OBBB Act —
+disallows every miscellaneous itemised deduction anyway. So basis is the only
+route to any benefit.
+
+A $100 card with $25 of grading that sells for $300 is **$175 of gain, not $200.**
+
+**If you hold it as inventory, it is a timing question, and it is unsettled.**
+UNICAP is switched off for you (263A(i) exempts anyone under the $32,000,000
+gross receipts test), and 471(c) lets a small business taxpayer conform to its
+own books. Nothing forces capitalisation — and nothing clearly permits current
+expensing either. No ruling, regulation or case addresses grading fees for any
+collectible.
+
+The app capitalises, deliberately. It is the conservative position, the only
+workable method when a card may sell in a later year, and it matches income with
+expense. Expensing currently is arguable rather than settled, works only if your
+books genuinely do it, and changing either way is an accounting method change.
+If you want the other treatment, take it to a CPA.
+
+**A hobbyist is in the investor's position for basis.** Section 183 disallows
+*deductions*; it does not disallow basis. Grading paid on a card you later sell
+still reduces the gain.
+
+---
+
 ## The state law that may make your city fee illegal
 
 Before you pay a city anything, read this.

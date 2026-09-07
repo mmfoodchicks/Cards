@@ -161,6 +161,32 @@ const UTAH: ComplianceTask[] = [
     estimatedCost: '$22 to register, $18 every three years',
   },
   {
+    id: 'ut-secondhand-dealer',
+    jurisdiction: 'state',
+    title: 'Ask Consumer Protection whether buying used SPORTS cards makes you a secondhand dealer',
+    detail:
+      'The sleeper obligation in this trade. Utah\'s Pawnshop and Secondhand Merchandise Act (Title 13, ' +
+      'Chapter 32a) can require anyone whose business buys used property FROM THE PUBLIC to register with ' +
+      'the Division of Consumer Protection, collect seller ID on every purchase, and upload every ' +
+      'transaction to the state Central Database. There is no minimum number of transactions — the ' +
+      'Division says so explicitly.\n\n' +
+      'The exemption at 13-32a-102(34)(c)(iv) covers "the sale or receipt of secondhand books, magazines, ' +
+      'post cards, or nonelectronic: (A) card games; (B) table-top games; or (C) magic tricks". Pokemon, ' +
+      'Magic and Yu-Gi-Oh are nonelectronic card games and appear to fall inside it. SPORTS cards are not ' +
+      'card games and appear not to.\n\n' +
+      'The internet carve-out at (c)(viii) covers someone who "does not have, and is not required to have, ' +
+      'a local business or occupational license". Once you hold a city licence it probably stops helping.\n\n' +
+      'No Division ruling, statute or rule answers the sports-card question. Do not guess: call, and get ' +
+      'the answer in writing. Buying at shows and off the public is exactly the activity in scope; buying ' +
+      'sealed product from a distributor is not, because that is not secondhand.',
+    requirement: 'conditional',
+    appliesWhen: 'You buy used cards or collections from members of the public — at shows, locally, or through the mail.',
+    formNumber: null,
+    agency: 'Utah Division of Consumer Protection',
+    url: 'https://commerce.utah.gov/dcp/for-businesses/pawnshops-and-secondhand-dealers/frequently-asked-questions/',
+    estimatedCost: '$300 a year if it applies, plus a $50 late fee after 31 January and up to a $500 civil penalty',
+  },
+  {
     id: 'ut-sales-tax-licence',
     jurisdiction: 'state',
     title: 'Get a Utah sales tax licence',

@@ -202,9 +202,29 @@ export interface GradingAllocationInput {
  * resale, and because the graded card is what eventually sells. That means it
  * reduces gain when the card sells rather than deducting this year.
  *
- * This is a genuine judgement call and reasonable accountants differ — a dealer
- * may have an argument for expensing it currently. The choice is recorded so it
- * can be changed, and the reasoning is stated here so it can be challenged.
+ * FOR A CARD HELD AS INVESTMENT this is not a choice at all, and that leg is
+ * airtight. Reg. 1.212-1(k) makes costs of "developing or improving property"
+ * part of the cost of that property rather than a deductible expense, and even
+ * if you disagreed, IRC 67(h) — made permanent by the OBBB Act — disallows
+ * every miscellaneous itemised deduction outright. So the ONLY route to any
+ * benefit is basis. A $100 card with $25 of grading that sells for $300 is
+ * $175 of gain, not $200.
+ *
+ * FOR A DEALER it is a timing question, and genuinely unsettled. UNICAP is off
+ * (263A(i) exempts anyone under the 448(c) gross receipts test, which for 2026
+ * is $32,000,000), and 471(c) lets a small business taxpayer conform to its own
+ * books. So nothing affirmatively FORCES capitalisation — but nothing permits
+ * current expensing either. No ruling, regulation or case addresses grading,
+ * encapsulation or authentication fees for any collectible.
+ *
+ * This app capitalises, deliberately, and does not offer a switch. Capitalising
+ * is the conservative position, it is the only workable method when a card may
+ * sell in a later year, and it matches income with expense. Current expensing
+ * is arguable rather than settled, works only if the books genuinely do it, and
+ * switching either way is an accounting method change. A first-year sole
+ * proprietor is not well served by a toggle between "safe" and "arguable"; if
+ * you want the other treatment, that is a conversation with a CPA who will also
+ * make your books match.
  */
 export function allocateGradingCost(input: GradingAllocationInput): Allocation {
   const { submission, items } = input;

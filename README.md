@@ -209,6 +209,26 @@ return.
 Utah is shown separately at its flat 4.45%, because Utah has no separate
 estimated-payment system for individuals: it settles with the annual return.
 
+### Money spent before you open
+
+Section 195: pre-opening costs are not business expenses, because there was no
+business. They become deductible in the year trading **begins** — $5,000
+immediately, phasing out dollar for dollar above $50,000 and gone at $55,000,
+with the rest spread over 180 months from the starting month.
+
+This is the deduction a new business most often loses outright, because nobody
+writes the costs down. Show admissions and travel to scout, an hour with a CPA,
+the city licence, a price-guide subscription — all of it counts, and none of it
+is recoverable later.
+
+The trap runs the other way too. **Cards bought before opening are not start-up
+costs.** They are inventory: the cost comes back through cost of goods sold when
+they sell, however much you spend. Equipment is not a start-up cost either — it
+is depreciated when placed in service.
+
+The business "begins" when it first offers cards for sale, not when you decided
+to do it and not when you bought your first box.
+
 ### Quarterly estimated tax
 
 Both safe harbours, and the lower one wins: 90% of this year's tax, or 100% of
@@ -252,6 +272,9 @@ Confirmed for 2026 against primary sources:
 | Federal rate schedules | all five, 2026 | Rev. Proc. 2025-32 §.01 |
 | Standard deduction | $16,100 single, $32,200 joint, $24,150 HoH | Rev. Proc. 2025-32 |
 | Form 1099-K threshold | over $20,000 AND over 200 sales | IRC 6050W(e), OBBB Act |
+| Start-up costs | $5,000, phasing out over $50,000, 180 months | IRC 195 |
+| Home office storage exception | exclusive use waived for inventory | IRC 280A(c)(2), Pub. 587 |
+| Home-business fee bar | no fee absent material offsite impact | Utah Code 10-1-203(8)(a) |
 | Utah income tax | 4.45% | Utah S.B. 60 (2026) |
 | Davis County sales tax | 7.15% or 7.25% | Utah Tax Commission, Q3 2026 |
 
@@ -308,7 +331,8 @@ src/
   domain/       money as integer cents, and the business model
   ledger/       purchases, basis allocation, opening packs, grading
   reports/      cost of goods sold, profit and loss, capital gains, export
-  tax/          figures with sources, self-employment, estimated tax, 1099-K, Utah
+  tax/          figures with sources, self-employment, income tax, estimated tax,
+                start-up costs, 1099-K, Utah
   compliance/   the checklist and the deadline calendar
   db/           SQLite schema, queries, audit log
   routes/       HTTP API
