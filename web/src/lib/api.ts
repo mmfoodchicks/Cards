@@ -252,6 +252,7 @@ export interface ScheduleC {
   selfEmployment: SelfEmployment | null;
   capitalGains: CapitalGains;
   homeOffice: { deductionCents: number; qualifyingSqFt: number; requirements: string[] } | null;
+  inventoryValuation: { line33: string; line34: string; note: string };
   beginningInventory: { inventoryBasisCents: number; inventoryCount: number };
   endingInventory: { inventoryBasisCents: number; inventoryCount: number; investmentBasisCents: number; zeroBasisCount: number };
   vehicle: { totalBusinessMiles: number; tripCount: number };

@@ -65,6 +65,14 @@ export function Reports({ year }: { year: number }) {
         <div className="table-wrap">
           <table>
             <tbody>
+              <tr>
+                <td>33 · Method used to value closing inventory</td>
+                <td className="num">{sc.inventoryValuation.line33}</td>
+              </tr>
+              <tr>
+                <td>34 · Any change in quantities, costs or valuations?</td>
+                <td className="num">{sc.inventoryValuation.line34}</td>
+              </tr>
               <tr><td>35 · Inventory at start of year</td><td className="num">{money(pl.cogs.beginningInventoryCents)}</td></tr>
               <tr>
                 <td>36 · Purchases less personal withdrawals</td>
@@ -77,6 +85,7 @@ export function Reports({ year }: { year: number }) {
             </tbody>
           </table>
         </div>
+        <p className="faint" style={{ marginTop: 8 }}>{sc.inventoryValuation.note}</p>
         <p className="faint" style={{ marginTop: 8 }}>
           Cross-check: adding up the cost of what actually sold gives {money(pl.cogs.cogsFromSalesCents)}.
           {pl.cogs.differenceCents === 0

@@ -53,6 +53,11 @@ export const SCHEDULE_C_LINES: Record<string, ScheduleCLine> = {
   '27b': { line: '27b', title: 'Other expenses (from line 48)', part: 'expenses' },
   '30': { line: '30', title: 'Expenses for business use of your home', part: 'expenses' },
 
+  // Two questions before any figures, and people skip them. 33 asks HOW you
+  // valued closing inventory; this app values at cost, so the answer is 33a.
+  // 34 asks whether the method changed, which is 'No' unless you switched.
+  '33': { line: '33', title: 'Method used to value closing inventory', part: 'cogs' },
+  '34': { line: '34', title: 'Change in quantities, costs or valuations', part: 'cogs' },
   '35': { line: '35', title: 'Inventory at beginning of year', part: 'cogs' },
   '36': { line: '36', title: 'Purchases less cost of items withdrawn for personal use', part: 'cogs' },
   '38': { line: '38', title: 'Materials and supplies', part: 'cogs' },

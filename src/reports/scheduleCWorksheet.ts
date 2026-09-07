@@ -26,6 +26,12 @@ export interface ScheduleCWorksheet {
   homeOffice: HomeOfficeResult | null;
   beginningInventory: InventorySnapshot;
   endingInventory: InventorySnapshot;
+  /** Lines 33 and 34: the two questions above Part III that people skip. */
+  inventoryValuation: {
+    line33: string;
+    line34: string;
+    note: string;
+  };
   /** Vehicle questions Schedule C Part IV asks. */
   vehicle: { totalBusinessMiles: number; tripCount: number; hasWrittenRecords: boolean };
   /** Figures behind the numbers that have not been confirmed. */
@@ -118,6 +124,15 @@ export function scheduleCWorksheet(year: number, db: Db = getDb()): ScheduleCWor
     homeOffice: home,
     beginningInventory: beginningInventory(year, db),
     endingInventory: endingInventory(year, db),
+    inventoryValuation: {
+      // This app carries inventory at what you PAID. It never uses market
+      // value as an amount, so the answer to line 33 is always (a) Cost.
+      line33: 'a — Cost',
+      line34: 'No',
+      note:
+        'Inventory here is carried at cost, so tick 33(a). Answer 34 "No" unless you changed method this ' +
+        'year — if you did, that is an accounting method change and needs more than a tick box.',
+    },
     vehicle: {
       totalBusinessMiles: trips.miles,
       tripCount: trips.n,
