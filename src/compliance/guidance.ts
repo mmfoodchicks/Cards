@@ -20,6 +20,7 @@ import { incomeTax } from '../tax/incomeTax.js';
 import { selfEmploymentTax } from '../tax/selfEmployment.js';
 import type { TaxYearFigures } from '../tax/figures.js';
 import { taxYear } from '../tax/registry.js';
+import { startupCosts, type StartupExpense } from '../tax/startupCosts.js';
 import type { FilingStatus, IsoDate, SalesChannel } from '../domain/types.js';
 
 export type GuidanceSeverity = 'opportunity' | 'caution' | 'information';
@@ -54,6 +55,7 @@ export function guidanceFor(input: GuidanceInput = {}): Guidance[] {
   out.push(...yearEndInventoryGuidance(db, todayIso));
   out.push(...zeroBasisGuidance(db));
   out.push(...marketplaceReportingGuidance(db, todayIso));
+  out.push(...startupCostGuidance(db, profile.startedOn, todayIso));
 
   return out;
 }
@@ -383,6 +385,95 @@ function marketplaceReportingGuidance(db: Db, today: IsoDate): Guidance[] {
 
 function sum(values: readonly number[]): number {
   return values.reduce((a, b) => a + b, 0);
+}
+
+/**
+ * Money spent before the doors open.
+ *
+ * Section 195 is the deduction people most often lose outright, because the
+ * costs land in the wrong mental bucket. Driving to a show to see what sells,
+ * an hour with a CPA on how to set this up, the city licence, a subscription to
+ * a price guide — all of it is deductible, and all of it is invisible unless it
+ * was written down at the time.
+ *
+ * The trap runs the other way too. Cards bought before opening feel like a
+ * start-up cost and are not: they are inventory, and their cost only comes back
+ * when they sell. Someone who spends $8,000 on wax in March expecting an $8,000
+ * deduction in April is going to be unpleasantly surprised.
+ */
+function startupCostGuidance(db: Db, startedOn: IsoDate | null, today: IsoDate): Guidance[] {
+  const rows = db.prepare(`
+    SELECT id, incurred_on AS incurredOn, account_key AS accountKey,
+           description, amount_cents AS amountCents
+    FROM expenses
+    ORDER BY incurred_on
+  `).all() as StartupExpense[];
+
+  // Before there is a start date, the advice is about keeping the records at
+  // all — which is the part that cannot be fixed retrospectively.
+  if (startedOn === null) {
+    return [
+      {
+        id: 'startup-not-started',
+        severity: 'opportunity',
+        title: 'Money you spend before opening is deductible — if you record it now',
+        because: 'You have not set a date for when the business starts trading, so nothing is being tracked as a start-up cost.',
+        body: [
+          'Section 195 lets you deduct up to $5,000 of pre-opening costs in the year the business begins, ' +
+            'with the rest spread over 180 months. Show admissions and travel to scout the market, an hour ' +
+            'with a CPA, the city licence, a price-guide subscription — all of it counts.',
+          'None of it is recoverable if it was never written down. This is the single most commonly lost ' +
+            'deduction for a new business, and the window is open right now.',
+          'Cards you buy before opening are NOT start-up costs. They are inventory: the cost comes back ' +
+            'through cost of goods sold when they sell, however much you spend.',
+          'The business "begins" when it first offers cards for sale — the first live listing or the first ' +
+            'show table. Not when you decided to do it, and not when you bought your first box.',
+        ],
+        steps: [
+          'Record pre-opening spending as it happens, under the Startup costs account.',
+          'Set your start date in Settings once you list or sell your first card.',
+        ],
+      },
+    ];
+  }
+
+  const year = Number(today.slice(0, 4));
+  const result = startupCosts(rows, startedOn, year);
+  if (!result) return [];
+
+  if (result.qualifyingCents === 0) {
+    // Only worth raising in the year trading began; after that the moment has passed.
+    if (Number(startedOn.slice(0, 4)) !== year) return [];
+    return [
+      {
+        id: 'startup-none-recorded',
+        severity: 'caution',
+        title: 'No start-up costs are recorded, which is unusual',
+        because: `Your business began trading on ${startedOn} and nothing is recorded before that date.`,
+        body: [
+          'Almost nobody starts a card business without spending something first — a show ticket, mileage to ' +
+            'scout, a licence, an hour of advice, a subscription.',
+          'Up to $5,000 of it is deductible in this year, and it is lost entirely if it was never recorded.',
+        ],
+        steps: ['Look back through your card statements for anything before ' + startedOn + '.'],
+      },
+    ];
+  }
+
+  return [
+    {
+      id: 'startup-costs',
+      severity: 'opportunity',
+      title: `${fmt(result.firstYearDeductionCents)} of start-up costs is deductible this year`,
+      because: `${fmt(result.qualifyingCents)} was spent before you began trading on ${startedOn}.`,
+      worthCents: result.firstYearDeductionCents,
+      body: [...result.explanation, ...result.warnings],
+      steps: [
+        'The election is automatic — nothing is attached to the return.',
+        'Keep the receipts: pre-opening costs are the ones a preparer will ask about.',
+      ],
+    },
+  ];
 }
 
 /**

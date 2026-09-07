@@ -262,6 +262,45 @@ records, rather than in January when they have to be reconstructed.
 
 ---
 
+## The state law that may make your city fee illegal
+
+Before you pay a city anything, read this.
+
+**Utah Code 10-1-203(8)(a)** says a municipality may not
+
+> charge any fee for a resident of the municipality to operate a home-based
+> business, unless the combined offsite impact of the home-based business and
+> the primary residential use materially exceeds the offsite impact of the
+> primary residential use alone.
+
+Selling cards online from a spare room has essentially no offsite impact — no
+customers at the door, no signage, no traffic, no deliveries beyond ordinary
+post. So for most Davis County cities, **a fee to operate is barred by statute**
+regardless of what the fee schedule prints.
+
+Two companion provisions matter as much:
+
+- **10-1-203(9)(a)** permits an administrative fee only for a licence an
+  otherwise-exempt owner **requests**. A fee charged as the price of operating is
+  a different thing from a fee for a certificate you asked for.
+- **10-1-203(9)(b)**: the city "shall notify the owner of each home-based
+  business of the exemption described in Subsection (8)(a) **in any
+  communication with the owner**." If a bill arrives without mentioning the
+  exemption, that is worth raising.
+
+**Utah Code 17-53-216(4)(b)** does the same for counties in unincorporated areas.
+
+None of this makes the **licence** go away where one is required — it goes to the
+**fee**. Ask the question in exactly those terms: *"I understand a licence is
+required. Under 10-1-203(8)(a), on what offsite impact is the fee based?"*
+
+Clinton's $47 home-occupation fee is the clearest case in the county: it is
+charged as a condition of operating, not on request, and not conditioned on
+impact. Sunset's ordinance, by contrast, opens *"Unless exempted by state,
+federal or local law"* — which defers to this statute by its own terms.
+
+---
+
 ## Federal income tax on business profit
 
 Business profit is ordinary income. It goes on Schedule C, flows to Form 1040,
@@ -318,7 +357,13 @@ exact. The app does not model the credit and says so.
 - Entertainment — 100% disallowed, with no 50% fallback
 - The cost of inventory you have not sold yet
 - Commuting from home to a regular workplace
-- A home office space that is not used *exclusively* for the business
+- A home office space that is not used *exclusively* for the business — **with one
+  large exception**: space used regularly to **store inventory** does not have to
+  meet the exclusive-use test (IRC 280A(c)(2)). Pub. 587 is explicit about it. The
+  conditions are that you sell at retail or wholesale, the stock is kept at home
+  for the business, your home is the *only* fixed location of that business, the
+  space is used regularly, and it is a separately identifiable space suitable for
+  storage. Most card sellers qualify on their shelving and never claim it.
 - Health insurance on Schedule C line 15 — that line is explicitly "other than
   health", and it goes elsewhere
 

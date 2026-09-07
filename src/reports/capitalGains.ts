@@ -162,7 +162,15 @@ export function capitalGainsForYear(year: number, db: Db = getDb()): CapitalGain
   if (longTerm.length > 0) {
     notes.push(
       'Gain on collectibles held more than a year is taxed at your ordinary rate but capped at 28%. ' +
-        'If your ordinary rate is below 28%, the cap does not bite and you simply pay your normal rate.',
+        'If your ordinary rate is below 28%, the cap does not bite and you simply pay your normal rate — ' +
+        'and note that collectibles gain never gets the 0/15/20% rates ordinary long-term gain enjoys.',
+    );
+    notes.push(
+      'Whether TRADING CARDS are section 408(m) collectibles at all is genuinely unsettled. They are not ' +
+        'named in the statute, and the catch-all covers only property "specified by the Secretary" — which ' +
+        'has never been done for cards by regulation, ruling or notice, and no published case decides it. ' +
+        'Reporting at 28% is the conservative position and carries no audit risk, which is what this app ' +
+        'does. Below the 28% bracket the question is moot: your ordinary rate applies either way.',
     );
   }
   const nearMiss = shortTerm.filter((d) => d.daysHeld >= 330 && d.daysHeld <= 366);

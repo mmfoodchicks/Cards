@@ -107,3 +107,46 @@ describe('deadlines', () => {
     expect(muchLater.some((d) => d.id === 'est-2026-q3')).toBe(true);
   });
 });
+
+describe('the state fee bar for home businesses', () => {
+  it('covers every Davis County city, including West Bountiful', () => {
+    const cities = DAVIS_COUNTY_CITIES.map((c) => c.city);
+    // West Bountiful is a separate city from Bountiful and was missing.
+    expect(cities).toContain('West Bountiful');
+    expect(cities).toContain('Bountiful');
+    // Every jurisdiction in the sales tax table that is a city should have an
+    // entry here, or a seller could be told nothing about where they live.
+    expect(cities.length).toBeGreaterThanOrEqual(16);
+  });
+
+  it('flags a fee charged as the price of operating, but not one merely offered', () => {
+    // 10-1-203(9)(a) expressly permits an administrative fee for a licence an
+    // exempt owner REQUESTS, and (8)(a) allows a fee where offsite impact
+    // materially exceeds ordinary residential use. Neither needs a caveat. A
+    // flat fee to OPERATE a no-impact home business is the one that does.
+    const permitted = /request|want one|optional|impact|customers come|patrons|employees|conditional use|penalty|free/i;
+
+    for (const city of DAVIS_COUNTY_CITIES) {
+      const fee = city.homeBusinessFee;
+      if (!fee || !/\$\d/.test(fee) || permitted.test(fee)) continue;
+      const text = [city.summary, ...city.watchOut].join(' ');
+      expect(text, `${city.city} charges ${fee} to operate with no reference to 10-1-203`)
+        .toMatch(/10-1-203/);
+    }
+  });
+
+  it('names the statutory fee bar so a seller can cite it', () => {
+    const clinton = DAVIS_COUNTY_CITIES.find((c) => c.city === 'Clinton')!;
+    expect(clinton.homeBusinessFee).toBe('$47');
+    expect(clinton.watchOut.join(' ')).toMatch(/10-1-203\(8\)\(a\)/);
+    // Sunset's ordinance defers to state law by its own opening words.
+    const sunset = DAVIS_COUNTY_CITIES.find((c) => c.city === 'Sunset')!;
+    expect(sunset.summary).toMatch(/Unless exempted by state, federal or local law/);
+  });
+
+  it('does not assert a city permits a home card business when that was unverifiable', () => {
+    const wb = DAVIS_COUNTY_CITIES.find((c) => c.city === 'West Bountiful')!;
+    expect(wb.verified).toBe(false);
+    expect(wb.watchOut.join(' ')).toMatch(/do not assume/i);
+  });
+});

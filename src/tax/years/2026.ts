@@ -206,8 +206,12 @@ export const FIGURES_2026: TaxYearFigures = {
       source: 'https://www.law.cornell.edu/uscode/text/26/408',
       confidence: 'verified',
       note:
-        'A cap, not a flat rate. If your ordinary rate is below 28% you simply pay your ordinary rate. ' +
-        'Applies only to a CAPITAL asset held more than a year — inventory never qualifies.',
+        'A cap, not a flat rate. If your ordinary rate is below 28% you simply pay your ordinary rate; ' +
+        'collectibles gain never gets the 0/15/20% rates. Applies only to a CAPITAL asset held more than a ' +
+        'year — inventory never qualifies. The 28% RATE is statutory and settled. Whether TRADING CARDS are ' +
+        'section 408(m) collectibles is NOT: cards are unnamed in the statute, the catch-all reaches only ' +
+        'property "specified by the Secretary" and that has never been done for cards, and no published case ' +
+        'decides it. 28% is the conservative position, which is why the app uses it.',
     }),
 
     // --- Net investment income tax ----------------------------------------
@@ -411,8 +415,11 @@ export const FIGURES_2026: TaxYearFigures = {
       source: 'https://www.irs.gov/businesses/small-businesses-self-employed/tangible-property-final-regulations',
       confidence: 'verified',
       note:
-        '$2,500 per item or invoice for a taxpayer with no applicable financial statement. Requires a written ' +
-        'accounting policy in place at the START of the year; the election is then made annually on the return.',
+        '$2,500 per item or invoice for a taxpayer with no applicable financial statement — not $5,000, which ' +
+        'is the figure for a taxpayer who has one. Requires a written accounting policy in place at the START ' +
+        'of the year; the election is then made annually on the return. It expressly does NOT reach inventory ' +
+        'or land, so a $2,400 card bought for resale does not qualify — that is stock in trade and its cost ' +
+        'comes back through cost of goods sold.',
     }),
   },
 };

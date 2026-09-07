@@ -11,10 +11,28 @@
  * Davis County itself licenses only in UNINCORPORATED areas. If you are inside
  * any city, you deal with that city and not the county.
  *
- * Utah Code 17-53-216(4)(b) bars a county from charging a home-based business a
- * licence fee unless the business has offsite impact, and several cities apply
- * the same logic — which is why so many of these are free for a business that
- * nobody visits.
+ * TWO STATE LAWS SIT ABOVE ALL OF THIS, and they are worth knowing before you
+ * pay anyone anything.
+ *
+ * Utah Code 10-1-203(8)(a): a municipality may not "charge any fee for a
+ * resident of the municipality to operate a home-based business, unless the
+ * combined offsite impact of the home-based business and the primary
+ * residential use materially exceeds the offsite impact of the primary
+ * residential use alone." Selling cards online from a spare room has
+ * essentially no offsite impact — no customers, no signage, no deliveries
+ * beyond ordinary post — so for most Davis County cities the fee is barred by
+ * statute, whatever the fee schedule says.
+ *
+ * 10-1-203(9)(a) then permits an administrative fee only for a licence that an
+ * otherwise-exempt owner REQUESTS. A fee charged as the price of operating is a
+ * different thing. And 10-1-203(9)(b) requires the city to notify the owner of
+ * the exemption "in any communication with the owner" — so if a city sends a
+ * bill without mentioning it, that is worth raising.
+ *
+ * Utah Code 17-53-216(4)(b) does the same for counties in unincorporated areas.
+ *
+ * None of this makes the LICENCE go away where one is required. It goes to the
+ * FEE. Ask the question in those terms.
  *
  * Checked September 2026. Fees and ordinances change; anything marked
  * unverified could not be read from the city's own published schedule and needs
@@ -66,6 +84,22 @@ export const DAVIS_COUNTY_CITIES: CityLicensing[] = [
     watchOut: ['The fee schedule could not be read — the city moved domains and the old document is gone. Ask them.'],
     url: 'https://www.bountiful.gov/193/Business-Licensing',
     verified: true,
+  },
+  {
+    city: 'West Bountiful',
+    requirement: 'conditional',
+    summary:
+      'A separate city from Bountiful, with its own licensing. Nothing about its home-occupation rules could ' +
+      'be retrieved from a primary source, so this entry asserts nothing about what it requires.',
+    homeBusinessFee: null,
+    renewal: null,
+    watchOut: [
+      'Do not assume Bountiful\'s rules apply here — they are different cities with different codes.',
+      'Call before you start. Ask: is a licence required for a home business with no customers visiting, ' +
+        'what does it cost, and is selling stock from home a permitted home occupation?',
+    ],
+    url: 'https://www.wbcity.org/',
+    verified: false,
   },
   {
     city: 'Clearfield',
@@ -149,12 +183,16 @@ export const DAVIS_COUNTY_CITIES: CityLicensing[] = [
   {
     city: 'Clinton',
     requirement: 'required',
-    summary: 'Home occupations are licensed, with a dedicated fee line in the city fee schedule.',
-    homeBusinessFee: null,
+    summary:
+      'Home occupations are licensed, with a dedicated $47 home-occupation fee line in the city fee schedule.',
+    homeBusinessFee: '$47',
     renewal: 'Annual, calendar year. Expires 31 December.',
     watchOut: [
       'A fire safety inspection AND a building inspection must be completed before the licence is issued.',
       'If you rent, you need the property owner\'s consent.',
+      'The $47 is charged as a condition of operating. Utah Code 10-1-203(8)(a) bars a fee to OPERATE a ' +
+        'home-based business absent material offsite impact, and 10-1-203(9)(a) permits an administrative ' +
+        'fee only for a licence an exempt owner REQUESTS. Ask them to reconcile the two before paying.',
     ],
     url: 'https://www.clintoncity.net/2166/Business-License',
     verified: true,
@@ -209,11 +247,16 @@ export const DAVIS_COUNTY_CITIES: CityLicensing[] = [
     city: 'Sunset',
     requirement: 'required',
     summary:
-      'It is unlawful to engage in business in the city without a licence, and the ordinance expressly covers ' +
-      'temporary as well as permanent activity.',
+      'The ordinance reads "Unless exempted by state, federal or local law, it shall be unlawful" to engage ' +
+      'in business without a licence, and it expressly covers temporary as well as permanent activity. That ' +
+      'opening clause matters: Utah Code 10-1-203(8)(a) is exactly such a law where the fee is concerned.',
     homeBusinessFee: null,
     renewal: 'Annual.',
-    watchOut: ['"Temporary" is covered too, so a one-off table at a Sunset event is caught by the ordinance.'],
+    watchOut: [
+      '"Temporary" is covered too, so a one-off table at a Sunset event is caught by the ordinance.',
+      'The ordinance defers to state law by its own terms — cite 10-1-203(8)(a) if a fee is asked for a ' +
+        'no-impact home business.',
+    ],
     url: 'https://sunsetut.gov/business-license/',
     verified: true,
   },

@@ -26,6 +26,7 @@ import { selfEmploymentTax, setAsideGuidance } from '../tax/selfEmployment.js';
 import { approachingThreshold, reporting1099k } from '../tax/reporting1099k.js';
 import { combinedMarginalRate, incomeTax } from '../tax/incomeTax.js';
 import { utahIncomeTax } from '../tax/utah/incomeTax.js';
+import { startupCosts } from '../tax/startupCosts.js';
 import { availableYears, figureHealth, taxYear } from '../tax/registry.js';
 import { ACCOUNTS, SCHEDULE_C_LINES, selectableAccounts } from '../tax/scheduleC.js';
 import { complianceChecklist } from '../compliance/checklist.js';
@@ -504,6 +505,30 @@ api.get('/reports/1099k', handle((req, res) => {
   const sales = listSales({ from: `${year}-01-01`, to: `${year}-12-31` });
   const summary = reporting1099k(sales, figures);
   res.json({ ...summary, approaching: approachingThreshold(summary, figures) });
+}));
+
+api.get('/reports/startup-costs', handle((req, res) => {
+  const year = yearParam(req);
+  const profile = getProfile();
+  // Everything ever recorded, because start-up costs by definition predate the
+  // year the business began and may predate it by more than one year.
+  const expenses = listExpenses();
+  const result = startupCosts(
+    expenses.map((e) => ({
+      id: e.id,
+      incurredOn: e.incurredOn,
+      accountKey: e.accountKey,
+      description: e.description,
+      amountCents: e.amountCents,
+    })),
+    profile.startedOn,
+    year,
+  );
+  res.json(result ?? {
+    unavailable:
+      'Set the date your business began trading in Settings. Until then there is no line between a start-up ' +
+      'cost and an ordinary expense, and section 195 turns entirely on that line.',
+  });
 }));
 
 api.get('/reports/estimated-tax', handle((req, res) => {

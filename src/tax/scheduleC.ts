@@ -47,7 +47,10 @@ export const SCHEDULE_C_LINES: Record<string, ScheduleCLine> = {
   '24a': { line: '24a', title: 'Travel', part: 'expenses' },
   '24b': { line: '24b', title: 'Deductible meals', part: 'expenses' },
   '25': { line: '25', title: 'Utilities', part: 'expenses' },
-  '27a': { line: '27a', title: 'Other expenses', part: 'expenses' },
+  // NOT 27a. Line 27a is the energy efficient commercial buildings deduction
+  // (attach Form 7205); other expenses are itemised in Part V, totalled on
+  // line 48, and carried to 27b. Verified against the printed form.
+  '27b': { line: '27b', title: 'Other expenses (from line 48)', part: 'expenses' },
   '30': { line: '30', title: 'Expenses for business use of your home', part: 'expenses' },
 
   '35': { line: '35', title: 'Inventory at beginning of year', part: 'cogs' },
@@ -126,7 +129,7 @@ export const ACCOUNTS: Account[] = [
   {
     key: 'shipping-out',
     name: 'Shipping and postage (outbound)',
-    scheduleCLine: '27a',
+    scheduleCLine: '27b',
     description: 'What it costs you to send a sold card to the buyer.',
     examples: ['USPS Ground Advantage label', 'eBay Standard Envelope', 'Insurance on a shipment', 'Signature confirmation'],
     caution: 'Shipping the buyer paid you is income; the label you bought is this expense. Record both.',
@@ -151,7 +154,7 @@ export const ACCOUNTS: Account[] = [
   {
     key: 'show-fees',
     name: 'Card show table and admission fees',
-    scheduleCLine: '27a',
+    scheduleCLine: '27b',
     description: 'What it costs to get in the door or set up a table.',
     examples: ['Vendor table fee', 'Dealer badge', 'Early admission', 'Booth electricity'],
   },
@@ -243,7 +246,7 @@ export const ACCOUNTS: Account[] = [
   {
     key: 'bank-fees',
     name: 'Bank and financing fees',
-    scheduleCLine: '27a',
+    scheduleCLine: '27b',
     description: 'Costs of the business bank account and any business borrowing.',
     examples: ['Business account monthly fee', 'Wire fees'],
   },
@@ -265,7 +268,7 @@ export const ACCOUNTS: Account[] = [
   {
     key: 'education',
     name: 'Education and reference',
-    scheduleCLine: '27a',
+    scheduleCLine: '27b',
     description: 'Materials that maintain or improve skills used in the business.',
     examples: ['Price guides', 'Grading reference books', 'Industry publications'],
   },
@@ -290,25 +293,32 @@ export const ACCOUNTS: Account[] = [
     description: 'A portion of home costs, where a space is used regularly and exclusively for the business.',
     examples: ['Simplified method based on square footage'],
     caution:
-      'The space must be used REGULARLY and EXCLUSIVELY for business. A desk in a room also used for other things does not qualify. Computed from your settings, not entered here.',
+      'Used REGULARLY and EXCLUSIVELY for business — a desk in a room also used for other things does not qualify. '
+      + 'EXCEPT for space used regularly to store inventory: IRC 280A(c)(2) waives the exclusive-use test for that, '
+      + 'so shelving that holds stock counts even in a room used for other things. Computed from your settings, not entered here.',
     computed: true,
   },
   {
     key: 'startup',
     name: 'Startup costs',
-    scheduleCLine: '27a',
-    description: 'Costs incurred investigating and setting up the business, before it opened.',
-    examples: ['Research and travel before starting', 'Entity formation costs', 'Pre-opening advertising'],
+    scheduleCLine: '27b',
+    description: 'Costs incurred investigating and setting up the business, before it opened (IRC 195).',
+    examples: [
+      'Travel to shows to scout the market before opening',
+      'A CPA consultation on how to set it up',
+      'Business licences obtained before opening',
+      'Pre-opening advertising, a website, pricing subscriptions',
+    ],
     caution:
-      'These are treated differently from ordinary expenses: a limited amount can be deducted in the first year and the rest is amortised. Flag these rather than mixing them in.',
+      'Section 195: no deduction at all until the business BEGINS, then $5,000 immediately — reduced dollar for dollar above $50,000 and gone at $55,000 — with the rest over 180 months. NOT start-up costs: cards bought for resale (inventory, recovered through cost of goods sold) and equipment (depreciated when placed in service). The business begins when it first offers cards for sale, not when you decided to do it.',
   },
   {
     key: 'other',
     name: 'Other business expense',
-    scheduleCLine: '27a',
+    scheduleCLine: '27b',
     description: 'Anything ordinary and necessary for the business that does not fit above.',
     examples: [],
-    caution: 'Describe it clearly — line 27a items are itemised on Part V of the form.',
+    caution: 'Describe it clearly — these are itemised individually in Part V of the form, which totals on line 48 and carries to line 27b.',
   },
 ];
 
