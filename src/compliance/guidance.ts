@@ -56,6 +56,7 @@ export function guidanceFor(input: GuidanceInput = {}): Guidance[] {
   out.push(...zeroBasisGuidance(db));
   out.push(...marketplaceReportingGuidance(db, todayIso));
   out.push(...startupCostGuidance(db, profile.startedOn, todayIso));
+  out.push(...tradeGuidance(db, todayIso));
 
   return out;
 }
@@ -243,6 +244,53 @@ function zeroBasisGuidance(db: Db): Guidance[] {
           'possible, because their cost has already gone into a reported period.',
       ],
       steps: ['Open Inventory and filter to what is on hand.', 'Check anything showing a zero cost.'],
+    },
+  ];
+}
+
+/**
+ * Trades, which feel free and are not.
+ *
+ * No money changes hands, so nothing feels like it happened. The regulation
+ * disagrees: Reg. 1.1001-1(a) treats "the exchange of property for other
+ * property differing materially either in kind or in extent" as a realisation
+ * event, and the amount realised is "the fair market value of any property
+ * (other than money) received."
+ *
+ * The folklore that trades are tax-free is not merely wrong, it is out of date
+ * in a specific way worth naming: like-kind exchange under section 1031 used to
+ * cover personal property, and the 2017 Act limited it to REAL property for
+ * exchanges after 31 December 2017. So the rule people half-remember was real
+ * once. It just has not applied to cards for years.
+ */
+function tradeGuidance(db: Db, today: IsoDate): Guidance[] {
+  const year = Number(today.slice(0, 4));
+  const row = db.prepare(`
+    SELECT COUNT(*) AS n, COALESCE(SUM(gross_cents), 0) AS gross
+    FROM sales
+    WHERE channel = 'trade' AND sold_on BETWEEN @from AND @to
+  `).get({ from: `${year}-01-01`, to: `${year}-12-31` }) as { n: number; gross: number };
+
+  if (row.n === 0) return [];
+
+  return [
+    {
+      id: 'trades-are-taxable',
+      severity: 'caution',
+      title: `${row.n} trade${row.n === 1 ? '' : 's'} this year, and ${row.n === 1 ? 'it counts' : 'they count'} as income`,
+      because: `You recorded ${fmt(row.gross)} of property received in trade during ${year}.`,
+      body: [
+        'A trade is a taxable disposition. The gain is the value of what you received less the cost of what ' +
+          'you gave up, and it is taxed in the year of the trade — not when you eventually sell what you got.',
+        'Section 1031 does not help. Like-kind exchange was limited to REAL property in 2017; it has not ' +
+          'covered cards since. The "trades are not taxable" rule people remember was real once and is not now.',
+        'Because no cash came in, the tax on a trade has to be funded from somewhere else. That is the part ' +
+          'that catches people — a good trade can leave you owing money you never received.',
+      ],
+      steps: [
+        'Keep evidence of what the cards you received were worth on the day — that value IS the tax figure.',
+        'Set aside the tax on the gain now, since the trade itself produced no cash to pay it with.',
+      ],
     },
   ];
 }

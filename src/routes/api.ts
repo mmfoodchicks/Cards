@@ -14,6 +14,7 @@ import {
   submissionItems, updateExpense, updateItem, updateProfile, complianceStatuses,
 } from '../db/repos.js';
 import { recordPurchase, reallocateLot } from '../ledger/purchases.js';
+import { recordTrade, TradeError } from '../ledger/trades.js';
 import { openSealedItem, reallocateOpening, receiveGradedCards, withdrawToPersonalUse } from '../ledger/inventory.js';
 import { profitAndLoss } from '../reports/profitLoss.js';
 import { cogsForYear } from '../reports/cogs.js';
@@ -589,6 +590,38 @@ api.get('/reports/estimated-tax', handle((req, res) => {
   });
 }));
 
+
+
+// ---------------------------------------------------------------------------
+// Trades
+//
+// A trade is a taxable disposition AND an acquisition, recorded together. Doing
+// only half of it is how the books go wrong: record what you received and
+// forget what you gave, and the card sits in inventory forever while the gain
+// never appears.
+// ---------------------------------------------------------------------------
+
+const tradeSchema = z.object({
+  tradedOn: isoDate,
+  givenUpItemIds: z.array(z.number().int().positive()).min(1),
+  received: z.array(purchaseItemSchema.extend({
+    fairMarketValueCents: z.number().int().positive(),
+  })).min(1),
+  counterparty: z.string().max(200).nullable().optional(),
+  cashAdjustmentCents: z.number().int().optional(),
+  notes: z.string().max(2000).nullable().optional(),
+});
+
+api.post('/trades', handle((req, res) => {
+  const parsed = tradeSchema.safeParse(req.body);
+  if (!parsed.success) return fail(res, 400, 'Invalid trade', parsed.error.flatten());
+  try {
+    res.status(201).json(recordTrade(parsed.data as never));
+  } catch (cause) {
+    if (cause instanceof TradeError) return fail(res, 400, cause.message);
+    throw cause;
+  }
+}));
 
 // ---------------------------------------------------------------------------
 // Valuation — what a card is WORTH, which is never what it COST.

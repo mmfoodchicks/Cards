@@ -116,6 +116,13 @@ const CHANNEL_RULES: Record<SalesChannel, ChannelRule> = {
       'Cash is reported by nobody. Peer-to-peer app payments marked as goods and services are, and a card ' +
       'reader is reported from the first cent.',
   },
+  trade: {
+    basis: 'self-reported',
+    label: 'Trade',
+    note:
+      'No platform reports a trade, because no platform was involved. It is still a taxable disposition ' +
+      'and still your income to report.',
+  },
   other: {
     basis: 'self-reported',
     label: 'Other',

@@ -256,6 +256,8 @@ export type SalesChannel =
   | 'card-show'
   | 'local-in-person'
   | 'website'
+  // A trade is a disposition like any other: what you received is the proceeds.
+  | 'trade'
   | 'other';
 
 export interface Sale {

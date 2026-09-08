@@ -326,3 +326,121 @@ describe('capital gains', () => {
     expect(schedule.guidance.join(' ')).toMatch(/never buy or sell them through the business bank account/i);
   });
 });
+
+
+/**
+ * A personal collection card is not business income, however it is disposed of.
+ *
+ * This was live: selling a $2,600 collection piece put $2,600 into Schedule C
+ * gross receipts, where it would attract self-employment tax — the exact
+ * opposite of the advice the app gives about that card. COGS was already
+ * filtered on holding intent; receipts were not.
+ */
+describe('personal dispositions stay off Schedule C', () => {
+  function collectionCard(db: Db, cost = 5000) {
+    return recordPurchase({
+      lot: {
+        purchasedOn: '2019-04-02', vendor: 'me', channel: 'personal-collection',
+        description: 'collection card', subtotalCents: cost, shippingCents: 0, taxCents: 0,
+        feesCents: 0, paymentMethod: null, resaleExemptionUsed: false, notes: null, receiptPath: null,
+      },
+      items: [{ description: 'Ohtani RC', kind: 'single', holdingIntent: 'investment' }],
+    }, db).items[0]!;
+  }
+
+  function inventoryCard(db: Db, cost = 5000) {
+    return recordPurchase({
+      lot: {
+        purchasedOn: '2026-01-05', vendor: 'shop', channel: 'card-show',
+        description: 'stock', subtotalCents: cost, shippingCents: 0, taxCents: 0,
+        feesCents: 0, paymentMethod: null, resaleExemptionUsed: false, notes: null, receiptPath: null,
+      },
+      items: [{ description: 'Stock card', kind: 'single', holdingIntent: 'inventory' }],
+    }, db).items[0]!;
+  }
+
+  const sale = (over: Record<string, unknown> = {}) => ({
+    soldOn: '2026-05-01' as const, channel: 'ebay' as const, orderRef: null, buyerState: null,
+    grossCents: 260000, shippingChargedCents: 0, salesTaxCollectedCents: 0,
+    salesTaxRemittedByPlatform: true, platformFeeCents: 0, paymentProcessingFeeCents: 0,
+    shippingCostCents: 0, otherFeeCents: 0, refundedCents: 0, notes: null, ...over,
+  });
+
+  it('excludes an ordinary sale of a collection piece', () => {
+    const db = openMemoryDb();
+    const item = collectionCard(db);
+    createSale(sale(), [{ itemId: item.id, quantity: 1, allocatedGrossCents: 260000, cogsCents: 5000 }], db);
+
+    const pl = profitAndLoss(2026, {}, db);
+    expect(pl.grossReceiptsCents).toBe(0);
+    expect(pl.cogsCents).toBe(0);
+  });
+
+  it('still counts an ordinary sale of inventory in full', () => {
+    const db = openMemoryDb();
+    const item = inventoryCard(db);
+    createSale(sale({ grossCents: 20000 }), [{ itemId: item.id, quantity: 1, allocatedGrossCents: 20000, cogsCents: 5000 }], db);
+    expect(profitAndLoss(2026, {}, db).grossReceiptsCents).toBe(20000);
+  });
+
+  it('splits a sale that mixed the two, rather than including or dropping it whole', () => {
+    const db = openMemoryDb();
+    const personal = collectionCard(db);
+    const stock = inventoryCard(db);
+    // One order, $1,000: $750 of it was the collection piece.
+    createSale(
+      sale({ grossCents: 100000, shippingChargedCents: 1000, platformFeeCents: 1300 }),
+      [
+        { itemId: personal.id, quantity: 1, allocatedGrossCents: 75000, cogsCents: 5000 },
+        { itemId: stock.id, quantity: 1, allocatedGrossCents: 25000, cogsCents: 5000 },
+      ],
+      db,
+    );
+
+    const pl = profitAndLoss(2026, {}, db);
+    // A quarter of the order was business, so a quarter of everything counts.
+    expect(pl.grossReceiptsCents).toBe(25250);
+  });
+
+  it('warns when fees recorded on sales are being deducted nowhere', () => {
+    // The sale form captures fees; the expense ledger is what actually deducts
+    // them. A user who fills in one and not the other overstates their profit,
+    // and the report should say so rather than quietly letting it happen.
+    const db = openMemoryDb();
+    const item = inventoryCard(db);
+    createSale(
+      sale({ grossCents: 20000, platformFeeCents: 2600, shippingCostCents: 700 }),
+      [{ itemId: item.id, quantity: 1, allocatedGrossCents: 20000, cogsCents: 5000 }],
+      db,
+    );
+    const pl = profitAndLoss(2026, {}, db);
+    expect(pl.warnings.join(' ')).toMatch(/33\.00 dollars of platform fees.*NONE of it is in your expenses/is);
+  });
+
+  it('warns to reconcile when fees appear in both places, and deducts only the expenses', () => {
+    const db = openMemoryDb();
+    const item = inventoryCard(db);
+    createSale(
+      sale({ grossCents: 20000, shippingCostCents: 400 }),
+      [{ itemId: item.id, quantity: 1, allocatedGrossCents: 20000, cogsCents: 5000 }],
+      db,
+    );
+    createExpense(
+      { incurredOn: '2026-05-01', accountKey: 'shipping-out', vendor: 'USPS', description: 'label',
+        amountCents: 400, businessUsePercent: 100, paymentMethod: null, receiptPath: null, notes: null },
+      db,
+    );
+    const pl = profitAndLoss(2026, {}, db);
+    // Counted once, from the expense ledger — never doubled.
+    expect(pl.expenseLines.find((l) => l.accountKey === 'shipping-out')!.deductibleCents).toBe(400);
+    expect(pl.warnings.join(' ')).toMatch(/Only the expenses are deducted here/i);
+  });
+
+  it('counts a sale with no lines in full, which is the right default', () => {
+    // Nothing links it to an item, so it cannot be classified. Almost every
+    // unlinked sale is an ordinary business sale.
+    const db = openMemoryDb();
+    createSale(sale({ grossCents: 5000 }), [], db);
+    expect(profitAndLoss(2026, {}, db).grossReceiptsCents).toBe(5000);
+  });
+});

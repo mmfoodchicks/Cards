@@ -209,6 +209,22 @@ return.
 Utah is shown separately at its flat 4.45%, because Utah has no separate
 estimated-payment system for individuals: it settles with the annual return.
 
+### Trading
+
+A trade is a **taxable disposition**, and the app records it as one action so
+you cannot do half of it. Record what you received and forget what you gave, and
+the card sits in inventory forever while the gain never appears.
+
+The gain is the value of what you received less the cost of what you gave up,
+taxed in the year of the trade. Section 1031 like-kind exchange was limited to
+**real property** in 2017 and has not covered cards since — the rule people
+half-remember was real once.
+
+What you receive comes in at its fair market value, which becomes the cost
+spread across the cards when you open it.
+
+The sting: a trade produces no cash, but the tax is due anyway.
+
 ### What a card is worth, which is not what it cost
 
 The **Stock** tab has a "What is it worth?" button on every item. It writes to an
@@ -367,7 +383,7 @@ npm run backup     # back up the database
 ```
 src/
   domain/       money as integer cents, and the business model
-  ledger/       purchases, basis allocation, opening packs, grading
+  ledger/       purchases, basis allocation, opening packs, grading, trades
   reports/      cost of goods sold, profit and loss, capital gains, export
   tax/          figures with sources, self-employment, income tax, estimated tax,
                 start-up costs, 1099-K, Utah

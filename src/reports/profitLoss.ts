@@ -93,19 +93,50 @@ export function profitAndLoss(
   const warnings: string[] = [];
 
   // --- Income -------------------------------------------------------------
+  //
+  // Only sales of INVENTORY are business receipts. Selling a card held as a
+  // personal collection piece is a capital disposition: it belongs on Form 8949
+  // and nowhere on Schedule C. Counting it here would be a serious error in the
+  // taxpayer's favour and then against him — it inflates gross receipts and
+  // then hands the gain self-employment tax it should never have attracted.
+  //
+  // Each sale is weighted by the share of its lines that were inventory, so a
+  // sale mixing the two (unusual, but possible in one order) contributes only
+  // its business part rather than being included or dropped wholesale. A sale
+  // with no lines at all cannot be classified and counts fully, which is the
+  // right default: almost every unlinked sale is an ordinary business sale.
   const sales = db.prepare(`
+    WITH shares AS (
+      SELECT
+        s.id AS sale_id,
+        CASE
+          WHEN COALESCE(SUM(l.allocated_gross_cents), 0) = 0 THEN 1.0
+          ELSE SUM(CASE WHEN i.holding_intent = 'inventory' THEN l.allocated_gross_cents ELSE 0 END) * 1.0
+               / SUM(l.allocated_gross_cents)
+        END AS business_share
+      FROM sales s
+      LEFT JOIN sale_lines l     ON l.sale_id = s.id
+      LEFT JOIN inventory_items i ON i.id = l.item_id
+      WHERE s.sold_on BETWEEN @from AND @to
+      GROUP BY s.id
+    )
     SELECT
-      COALESCE(SUM(gross_cents), 0)              AS gross,
-      COALESCE(SUM(shipping_charged_cents), 0)   AS shippingCharged,
-      COALESCE(SUM(refunded_cents), 0)           AS refunded,
-      COALESCE(SUM(platform_fee_cents), 0)       AS platformFees,
-      COALESCE(SUM(payment_processing_fee_cents), 0) AS processingFees,
-      COALESCE(SUM(shipping_cost_cents), 0)      AS shippingCost,
-      COALESCE(SUM(other_fee_cents), 0)          AS otherFees,
-      COALESCE(SUM(CASE WHEN sales_tax_remitted_by_platform = 0 THEN sales_tax_collected_cents ELSE 0 END), 0) AS taxSelfCollected,
-      COALESCE(SUM(CASE WHEN sales_tax_remitted_by_platform = 1 THEN sales_tax_collected_cents ELSE 0 END), 0) AS taxPlatformCollected
-    FROM sales WHERE sold_on BETWEEN @from AND @to
+      COALESCE(SUM(s.gross_cents * sh.business_share), 0)              AS gross,
+      COALESCE(SUM(s.shipping_charged_cents * sh.business_share), 0)   AS shippingCharged,
+      COALESCE(SUM(s.refunded_cents * sh.business_share), 0)           AS refunded,
+      COALESCE(SUM(s.platform_fee_cents * sh.business_share), 0)       AS platformFees,
+      COALESCE(SUM(s.payment_processing_fee_cents * sh.business_share), 0) AS processingFees,
+      COALESCE(SUM(s.shipping_cost_cents * sh.business_share), 0)      AS shippingCost,
+      COALESCE(SUM(s.other_fee_cents * sh.business_share), 0)          AS otherFees,
+      COALESCE(SUM(CASE WHEN s.sales_tax_remitted_by_platform = 0 THEN s.sales_tax_collected_cents * sh.business_share ELSE 0 END), 0) AS taxSelfCollected,
+      COALESCE(SUM(CASE WHEN s.sales_tax_remitted_by_platform = 1 THEN s.sales_tax_collected_cents * sh.business_share ELSE 0 END), 0) AS taxPlatformCollected
+    FROM sales s
+    JOIN shares sh ON sh.sale_id = s.id
+    WHERE s.sold_on BETWEEN @from AND @to
   `).get({ from, to }) as Record<string, number>;
+
+  // Apportioning by a share produces fractions; money is whole cents.
+  for (const key of Object.keys(sales)) sales[key] = Math.round(sales[key]!);
 
   // Shipping the buyer paid is part of what they paid you, so it is receipts.
   const grossReceipts = sales.gross! + sales.shippingCharged!;
@@ -178,6 +209,41 @@ export function profitAndLoss(
       deductibleCents: deductible,
       limitNote,
     });
+  }
+
+  // --- Fees recorded on the sales themselves --------------------------------
+  //
+  // The sale form captures what the platform kept, what the processor took and
+  // what postage cost. Those are real deductions — but this report does NOT
+  // take them, because the expense ledger is the single source of truth for
+  // deductions and counting both would silently double them.
+  //
+  // Deliberately a warning rather than a silent correction. Adding them here
+  // would understate profit for anyone who also records fees as expenses, and
+  // understating profit means underpaying, which is the more expensive mistake.
+  // So the report says what it can see and leaves the choice with the user.
+  const saleFeeTotal =
+    sales.platformFees! + sales.processingFees! + sales.shippingCost! + sales.otherFees!;
+
+  if (saleFeeTotal > 0) {
+    const feeAccounts = ['platform-fees', 'payment-processing', 'shipping-out'];
+    const recordedSeparately = expenseRows
+      .filter((r) => feeAccounts.includes(r.account_key))
+      .reduce((a, r) => a + r.gross, 0);
+
+    if (recordedSeparately === 0) {
+      warnings.push(
+        `Your sales record ${(saleFeeTotal / 100).toFixed(2)} dollars of platform fees, processing fees and ` +
+          'postage, and NONE of it is in your expenses — so none of it is being deducted and this report ' +
+          'overstates your profit. Record those fees as expenses, or take them straight onto Schedule C.',
+      );
+    } else {
+      warnings.push(
+        `Your sales record ${(saleFeeTotal / 100).toFixed(2)} dollars of fees and postage, and your expenses ` +
+          `record ${(recordedSeparately / 100).toFixed(2)} dollars against the same categories. Only the ` +
+          'expenses are deducted here. Check the two agree — a gap means a deduction is being missed.',
+      );
+    }
   }
 
   // --- Mileage ------------------------------------------------------------

@@ -262,6 +262,64 @@ records, rather than in January when they have to be reconstructed.
 
 ---
 
+## Trading cards for cards is a taxable event
+
+No money changes hands, so it feels like nothing happened. That intuition is
+expensive.
+
+**Treas. Reg. 1.1001-1(a):**
+
+> the gain or loss realized from the conversion of property into cash, **or from
+> the exchange of property for other property** differing materially either in
+> kind or in extent, is treated as income or as loss sustained
+
+and the amount realized is
+
+> the sum of any money received plus **the fair market value of any property
+> (other than money) received**
+
+So trading a card worth $750 that cost you $306.39 is a **$443.61 gain**,
+recognised on the day of the trade, whether or not you ever sell what you got.
+
+### Section 1031 does not save you
+
+The "trades aren't taxable" folklore was true once, which is exactly why it
+persists. Like-kind exchange under IRC 1031 used to cover personal property. The
+2017 Act limited it to **real property**, for exchanges completed after
+31 December 2017. The section now opens:
+
+> No gain or loss shall be recognized on the exchange of **real property** held
+> for productive use in a trade or business or for investment…
+
+Cards are not real property. There is no deferral available.
+
+### What you receive
+
+The property you get takes a basis equal to **its fair market value** — you paid
+for it with something worth that much. Two boxes worth $375 each come in at $750
+of cost, and that is what gets spread across the cards when you open them.
+
+### The part that actually hurts
+
+A trade produces **no cash**, but the tax on the gain is due anyway. A good trade
+can leave you owing money you never received. Set it aside from somewhere else.
+
+### Which pocket it comes out of
+
+| Held as | Where the gain goes | Self-employment tax |
+|---|---|---|
+| Business inventory | Schedule C, ordinary income | **Yes** |
+| Personal collection | Form 8949 / Schedule D, capital gain | **No** |
+
+On a $443.61 gain that difference is about **$63** — the whole self-employment
+tax on it.
+
+**The value you assign is the tax figure.** Write down where it came from — a
+sold comp, the other side's asking price, a price guide on the day — because
+that is the number that would be questioned.
+
+---
+
 ## Inventory is carried at cost, not at what it is worth
 
 Schedule C line 33 asks: *"Method(s) used to value closing inventory: (a) Cost,
