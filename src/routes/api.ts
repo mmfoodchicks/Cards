@@ -3,7 +3,7 @@
 import { Router, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { config } from '../config.js';
-import { allocate } from '../domain/money.js';
+import { allocate, dollarsToCents } from '../domain/money.js';
 import { getDb } from '../db/index.js';
 import { recentAudit, auditHistory } from '../db/audit.js';
 import {
@@ -27,6 +27,9 @@ import { approachingThreshold, reporting1099k } from '../tax/reporting1099k.js';
 import { combinedMarginalRate, incomeTax } from '../tax/incomeTax.js';
 import { utahIncomeTax } from '../tax/utah/incomeTax.js';
 import { startupCosts } from '../tax/startupCosts.js';
+import {
+  COVERAGE_GAPS, getSource, listSources, registerDefaultSources,
+} from '../valuation/index.js';
 import { availableYears, figureHealth, taxYear } from '../tax/registry.js';
 import { ACCOUNTS, SCHEDULE_C_LINES, selectableAccounts } from '../tax/scheduleC.js';
 import { complianceChecklist } from '../compliance/checklist.js';
@@ -583,6 +586,122 @@ api.get('/reports/estimated-tax', handle((req, res) => {
     combinedMarginalRate: federal ? combinedMarginalRate(federal) : null,
     figuresNeedingCheck: worksheet.figuresNeedingCheck,
     hasFigures: figures !== null,
+  });
+}));
+
+
+// ---------------------------------------------------------------------------
+// Valuation — what a card is WORTH, which is never what it COST.
+//
+// Everything here is read-only with respect to the ledger. A quote can be
+// applied to an item's estimatedValueCents and to nothing else; there is no
+// path from a price lookup to basis, and basis.test.ts enforces that the
+// distinction survives.
+// ---------------------------------------------------------------------------
+
+registerDefaultSources();
+
+api.get('/valuation/sources', handle((_req, res) => {
+  res.json({
+    sources: listSources().map((s) => ({
+      key: s.key,
+      name: s.name,
+      description: s.description,
+      requiresKey: s.requiresKey,
+      configured: s.configured,
+      provides: s.provides,
+    })),
+    gaps: COVERAGE_GAPS,
+    note:
+      'A value is an estimate about a market. A basis is a fact about money you spent. Only the second one ' +
+      'reaches your tax return — nothing on this page can change what a card cost.',
+  });
+}));
+
+api.get('/valuation/:source/categories', handle(async (req, res) => {
+  const source = getSource(String(req.params.source));
+  if (!source) return fail(res, 404, 'No such valuation source');
+  res.json({ categories: await source.categories() });
+}));
+
+api.get('/valuation/:source/categories/:category/groups', handle(async (req, res) => {
+  const source = getSource(String(req.params.source));
+  if (!source) return fail(res, 404, 'No such valuation source');
+  res.json({ groups: await source.groups(String(req.params.category)) });
+}));
+
+const valuationSearchSchema = z.object({
+  query: z.string().min(1).max(200),
+  category: z.string().min(1).max(50).optional(),
+  group: z.string().min(1).max(50).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
+api.get('/valuation/:source/search', handle(async (req, res) => {
+  const source = getSource(String(req.params.source));
+  if (!source) return fail(res, 404, 'No such valuation source');
+
+  const parsed = valuationSearchSchema.safeParse({
+    query: req.query.query,
+    category: req.query.category,
+    group: req.query.group,
+    limit: req.query.limit === undefined ? undefined : Number(req.query.limit),
+  });
+  if (!parsed.success) return fail(res, 400, 'Invalid search', parsed.error.flatten());
+
+  res.json(await source.search(parsed.data));
+}));
+
+const applyValueSchema = z.object({
+  /** Cents, when the caller already has an exact integer. */
+  estimatedValueCents: z.number().int().min(0).optional(),
+  /**
+   * A typed decimal like "749.99". Parsed here with the same exact BigInt
+   * parser the rest of the app uses, so the browser never multiplies a float
+   * by 100 — which is how 1.005 silently becomes 100 cents.
+   */
+  dollars: z.string().min(1).max(30).optional(),
+  /** Where the number came from, kept so it can be judged later. */
+  provenance: z.string().min(1).max(500),
+}).refine((v) => v.estimatedValueCents !== undefined || v.dollars !== undefined, {
+  message: 'Provide either estimatedValueCents or dollars.',
+});
+
+/**
+ * Attach a value to an item.
+ *
+ * Deliberately a separate endpoint from the general item patch, so that "record
+ * what this is worth" is a different, narrower action from "edit this item".
+ * It writes estimatedValueCents and the provenance note and nothing else.
+ */
+api.post('/items/:id/value', handle((req, res) => {
+  const parsed = applyValueSchema.safeParse(req.body);
+  if (!parsed.success) return fail(res, 400, 'Invalid value', parsed.error.flatten());
+
+  const item = getItem(Number(req.params.id));
+  if (!item) return fail(res, 404, 'Item not found');
+
+  let cents: number;
+  try {
+    cents = parsed.data.dollars !== undefined
+      ? dollarsToCents(parsed.data.dollars)
+      : parsed.data.estimatedValueCents!;
+  } catch (cause) {
+    return fail(res, 400, cause instanceof Error ? cause.message : 'Could not read that amount');
+  }
+  if (cents < 0) return fail(res, 400, 'A value cannot be negative.');
+
+  const updated = updateItem(
+    item.id,
+    { estimatedValueCents: cents } as never,
+    `Value recorded: ${parsed.data.provenance}`,
+  );
+
+  res.json({
+    item: updated,
+    note:
+      'Recorded as an estimated value. This does NOT change what the card cost, and it does not appear ' +
+      'anywhere on your Schedule C. Inventory is reported at cost.',
   });
 }));
 

@@ -209,6 +209,44 @@ return.
 Utah is shown separately at its flat 4.45%, because Utah has no separate
 estimated-payment system for individuals: it settles with the annual return.
 
+### What a card is worth, which is not what it cost
+
+The **Stock** tab has a "What is it worth?" button on every item. It writes to an
+estimated value and to nothing else. Your books carry the card at what you paid,
+and that is the figure that reaches Schedule C — line 33 of the form asks how you
+valued closing inventory, and the answer is always **(a) Cost**.
+
+Attaching a $749.99 value to a card that cost $306.39 moves no number on the
+return. That is enforced by tests, not by good intentions: allocation is
+invariant to scaling every estimate by 1000×, and market value appears in none
+of the tax computation files.
+
+**About eBay, since that is what everyone asks for first.** eBay's sold prices
+are not obtainable. Verified against eBay's own documentation:
+
+- The Finding API, which carried `findCompletedItems`, was decommissioned on
+  **4 February 2025**.
+- The Browse API returns **active listings only** — its published OpenAPI spec
+  contains `lastSoldDate`, `lastSoldPrice` and `itemSales` exactly **zero** times
+  across 407 KB of schema.
+- The Marketplace Insights API is the only eBay endpoint with sold prices and is
+  **restricted to invited partners**; its spec URL now 404s while Browse returns
+  200.
+
+So the app uses **TCGCSV**, a free daily mirror of TCGplayer prices covering
+Pokémon, Magic, Yu-Gi-Oh and 89 other games. No key, no signup.
+
+What it gives you is the **raw, ungraded market price** — not a completed sale,
+and not the value of a slab. Every quote is stamped as such, each printing is
+kept separate (a reverse holo is not its base card), and there is **no sports
+card data at all**, which the app says plainly rather than substituting a wrong
+number. For sports and for graded cards, you look it up and type it in, and the
+app records where it came from.
+
+It never guesses a card from a name. You pick the game and the set, then search
+within it — because the previous version of this app tried to parse identity out
+of listing titles and produced confident nonsense.
+
 ### Money spent before you open
 
 Section 195: pre-opening costs are not business expenses, because there was no
@@ -333,6 +371,7 @@ src/
   reports/      cost of goods sold, profit and loss, capital gains, export
   tax/          figures with sources, self-employment, income tax, estimated tax,
                 start-up costs, 1099-K, Utah
+  valuation/    price lookups, which can never touch cost basis
   compliance/   the checklist and the deadline calendar
   db/           SQLite schema, queries, audit log
   routes/       HTTP API

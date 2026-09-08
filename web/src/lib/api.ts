@@ -261,6 +261,54 @@ export interface ScheduleC {
   disclaimer: string;
 }
 
+export interface ValuationQuote {
+  sourceKey: string;
+  sourceName: string;
+  basis: 'raw-market' | 'graded' | 'sold-comp' | 'manual';
+  valueCents: number;
+  fieldName: string;
+  currency: string;
+  asOf: string | null;
+  matchedName: string;
+  variant: string | null;
+  matchedId: string | null;
+  caveats: string[];
+  url: string | null;
+}
+
+export interface ValuationCandidate {
+  matchedId: string;
+  matchedName: string;
+  groupName: string | null;
+  number: string | null;
+  variant: string | null;
+  quotes: ValuationQuote[];
+  url: string | null;
+}
+
+export interface ValuationResult {
+  sourceKey: string;
+  sourceName: string;
+  candidates: ValuationCandidate[];
+  searched: boolean;
+  notes: string[];
+}
+
+export interface ValuationSourceInfo {
+  key: string;
+  name: string;
+  description: string;
+  requiresKey: boolean;
+  configured: boolean;
+  provides: string[];
+}
+
+export interface CoverageGap {
+  what: string;
+  why: string;
+  instead: string;
+}
+
 const BASE = '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -364,6 +412,27 @@ export const api = {
   estimatedTax: (year: number) => request<EstimatedTax>(`/reports/estimated-tax?year=${year}`),
   capitalGains: (year: number) => request<CapitalGains>(`/reports/capital-gains?year=${year}`),
   reporting1099k: (year: number) => request<Reporting1099k>(`/reports/1099k?year=${year}`),
+
+  valuationSources: () =>
+    request<{ sources: ValuationSourceInfo[]; gaps: CoverageGap[]; note: string }>('/valuation/sources'),
+  valuationCategories: (source: string) =>
+    request<{ categories: Array<{ id: string; name: string }> }>(`/valuation/${source}/categories`),
+  valuationGroups: (source: string, category: string) =>
+    request<{ groups: Array<{ id: string; name: string; releasedOn: string | null }> }>(
+      `/valuation/${source}/categories/${encodeURIComponent(category)}/groups`,
+    ),
+  valuationSearch: (source: string, params: { query: string; category: string; group: string }) => {
+    const q = new URLSearchParams(params);
+    return request<ValuationResult>(`/valuation/${source}/search?${q.toString()}`);
+  },
+  setItemValue: (id: number, estimatedValueCents: number, provenance: string) =>
+    post<{ item: Item; note: string }>(`/items/${id}/value`, { estimatedValueCents, provenance }),
+  /**
+   * Sends the typed decimal as a STRING so the server parses it exactly.
+   * Multiplying a float by 100 in the browser is how 1.005 becomes 100 cents.
+   */
+  setItemValueDollars: (id: number, dollars: string, provenance: string) =>
+    post<{ item: Item; note: string }>(`/items/${id}/value`, { dollars, provenance }),
   investmentSchedule: () =>
     request<{ generatedAt: string; entries: Array<Record<string, unknown>>; totalBasisCents: number; totalValueCents: number; guidance: string[] }>(
       '/reports/investment-schedule',

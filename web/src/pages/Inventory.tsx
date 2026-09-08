@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, formatDate, money, parseMoney, today, type Item } from '../lib/api';
 import { Banner, Empty, Field, Spinner } from '../components/ui';
+import { ValueLookup } from '../components/ValueLookup';
 
 /** What is on hand, what it cost, and what can be done with it. */
 export function Inventory() {
@@ -12,6 +13,7 @@ export function Inventory() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [opening, setOpening] = useState<Item | null>(null);
+  const [valuing, setValuing] = useState<Item | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -34,6 +36,16 @@ export function Inventory() {
 
   if (opening) {
     return <OpenPack item={opening} onDone={async () => { setOpening(null); await load(); }} onCancel={() => setOpening(null)} />;
+  }
+
+  if (valuing) {
+    return (
+      <ValueLookup
+        item={valuing}
+        onSaved={load}
+        onClose={async () => { setValuing(null); await load(); }}
+      />
+    );
   }
 
   return (
@@ -90,11 +102,16 @@ export function Inventory() {
                   {item.quantity > 1 && ` · qty ${item.quantity}`}
                   {item.estimatedValueCents ? ` · worth about ${money(item.estimatedValueCents)}` : ''}
                 </div>
-                {(item.kind === 'sealed-to-open' || item.kind === 'sealed') && item.status === 'on-hand' && (
-                  <button className="btn secondary small" style={{ marginTop: 8 }} onClick={() => setOpening(item)}>
-                    Open this
+                <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                  {(item.kind === 'sealed-to-open' || item.kind === 'sealed') && item.status === 'on-hand' && (
+                    <button className="btn secondary small" onClick={() => setOpening(item)}>
+                      Open this
+                    </button>
+                  )}
+                  <button className="btn secondary small" onClick={() => setValuing(item)}>
+                    What is it worth?
                   </button>
-                )}
+                </div>
               </div>
               <div className="amount">{money(item.basisCents)}</div>
             </div>

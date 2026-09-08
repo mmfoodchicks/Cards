@@ -262,6 +262,44 @@ records, rather than in January when they have to be reconstructed.
 
 ---
 
+## Inventory is carried at cost, not at what it is worth
+
+Schedule C line 33 asks: *"Method(s) used to value closing inventory: (a) Cost,
+(b) Lower of cost or market, (c) Other."* For this app the answer is **(a)
+Cost**, and that answer is the whole of the matter.
+
+A card you believe is worth $750 and paid $50 for sits in your books at **$50**.
+The $750 becomes a tax number on the day it sells and not one day before. Sell it
+for $750 and you have $700 of profit; never sell it and it changes nothing you
+owe.
+
+This trips people up because it feels backwards — a valuable card ought to be a
+valuable asset. It is. It just is not a *deduction*, and inventory on a tax
+return is a cost figure, not a net-worth figure.
+
+**Why ending inventory still has to be right.** Part III computes:
+
+```
+beginning inventory + purchases − ending inventory = cost of goods sold
+```
+
+Ending inventory is what stops you deducting the cost of cards you still own.
+Get it wrong and you have either overstated this year's deduction or lost it
+permanently.
+
+**Where a market value IS legitimate:**
+
+- Splitting the cost of a box or a lot across its contents by relative fair
+  market value (Treas. Reg. 1.61-6) — only the *ratios* matter there, never the
+  absolute figures
+- Deciding what to sell and when
+- Insurance, and the personal collection schedule
+- Working out whether a card is better sold as a collection piece or as inventory
+
+**Where it is not:** anywhere on Schedule C.
+
+---
+
 ## Grading fees
 
 **If you hold the card as investment, there is no choice.** Grading goes into the
