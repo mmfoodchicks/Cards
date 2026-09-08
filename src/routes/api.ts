@@ -35,7 +35,7 @@ import { availableYears, figureHealth, taxYear } from '../tax/registry.js';
 import { ACCOUNTS, SCHEDULE_C_LINES, selectableAccounts } from '../tax/scheduleC.js';
 import { complianceChecklist } from '../compliance/checklist.js';
 import { guidanceFor } from '../compliance/guidance.js';
-import { upcomingDeadlines } from '../compliance/calendar.js';
+import { upcomingDeadlines, type DeadlineSituation } from '../compliance/calendar.js';
 import { logger } from '../util/logger.js';
 
 const log = logger('api');
@@ -811,8 +811,51 @@ api.get('/compliance', (_req, res) => {
       notApplicable: status?.not_applicable === 1,
     };
   });
-  res.json({ tasks, deadlines: upcomingDeadlines(config.taxYear, new Date()) });
+  res.json({ tasks, deadlines: upcomingDeadlines(config.taxYear, new Date(), 45, deadlineSituation()) });
 });
+
+/**
+ * What is actually true right now, so a date can be told from a duty.
+ *
+ * Someone still deciding whether to start does not owe a quarterly instalment,
+ * and telling them one is due in seven days — with penalty language — is both
+ * wrong and the fastest way to teach them to ignore the calendar.
+ */
+function deadlineSituation(): DeadlineSituation {
+  const db = getDb();
+  const profile = getProfile();
+  const year = config.taxYear;
+  const range = { from: `${year}-01-01`, to: `${year}-12-31` };
+
+  const sales = db.prepare(
+    'SELECT COUNT(*) AS n, COALESCE(SUM(CASE WHEN sales_tax_remitted_by_platform = 0 THEN sales_tax_collected_cents ELSE 0 END), 0) AS ownTax'
+    + ' FROM sales WHERE sold_on BETWEEN @from AND @to',
+  ).get(range) as { n: number; ownTax: number };
+
+  const started = profile.startedOn !== null && profile.startedOn <= new Date().toISOString().slice(0, 10);
+
+  let projectedTaxCents = 0;
+  if (started) {
+    const worksheet = scheduleCWorksheet(year);
+    const figures = taxYear(year);
+    projectedTaxCents = worksheet.selfEmployment ? worksheet.selfEmployment.totalCents : 0;
+    if (figures && figures.brackets) {
+      projectedTaxCents += incomeTax({
+        businessProfitCents: worksheet.profitLoss.netProfitCents,
+        otherIncomeCents: profile.otherIncomeCents,
+        selfEmploymentDeductionCents: worksheet.selfEmployment ? worksheet.selfEmployment.deductionCents : 0,
+        filingStatus: profile.filingStatus,
+      }, figures).totalTaxCents;
+    }
+  }
+
+  return {
+    hasStarted: started,
+    projectedTaxCents,
+    hasSales: sales.n > 0,
+    owesSalesTax: sales.ownTax > 0,
+  };
+}
 
 api.put('/compliance/:taskId', handle((req, res) => {
   const parsed = z.object({

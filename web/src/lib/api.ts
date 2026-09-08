@@ -221,6 +221,8 @@ export interface ComplianceTask {
 
 export interface DeadlineItem {
   id: string;
+  applies: boolean;
+  notApplicable: string | null;
   jurisdiction: string;
   title: string;
   detail: string;

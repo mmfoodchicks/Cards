@@ -24,7 +24,8 @@ export function Dashboard({ year, onNavigate }: { year: number; onNavigate: (tab
         setHealth(h);
         setSc(s);
         setEst(e);
-        setDeadlines(c.deadlines.filter((d) => d.urgency !== 'later'));
+        // A date that carries no duty for you is not a deadline.
+        setDeadlines(c.deadlines.filter((d) => d.applies && d.urgency !== 'later'));
         setGuidance(g.guidance);
       })
       .catch((err: unknown) => !cancelled && setError(err instanceof Error ? err.message : 'Could not load'));
@@ -109,7 +110,7 @@ export function Dashboard({ year, onNavigate }: { year: number; onNavigate: (tab
           The mistake that hurts most in year one is spending profit that was never yours.
         </p>
 
-        {est.setAside.suggestedRate !== null && (
+        {est.setAside.suggestedRate !== null && pl.netProfitCents > 0 && (
           <Banner kind="warn">
             <strong>{est.setAside.explanation}</strong>
             {est.combinedMarginalRate !== null && (

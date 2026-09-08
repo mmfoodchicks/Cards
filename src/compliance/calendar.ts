@@ -76,6 +76,10 @@ export function deadlinesForYear(year: number): Deadline[] {
 export interface UpcomingDeadline extends Deadline {
   daysAway: number;
   urgency: 'overdue' | 'imminent' | 'soon' | 'later';
+  /** False when this date carries no duty for this taxpayer. */
+  applies: boolean;
+  /** Why it does not apply, when it does not. */
+  notApplicable: string | null;
 }
 
 /**
@@ -85,15 +89,72 @@ export interface UpcomingDeadline extends Deadline {
  * more urgent than one three months out, and hiding it the moment it passes is
  * how people find out in April.
  */
-export function upcomingDeadlines(year: number, today: Date, lookBackDays = 45): UpcomingDeadline[] {
+/**
+ * What is actually true about this taxpayer, so a date can be told from a duty.
+ *
+ * Without this, every deadline fires on its date regardless of whether anything
+ * is owed — and someone who has not started a business gets told a quarterly
+ * instalment is due in seven days, with penalty language. That is worse than
+ * useless: it is frightening and wrong, and it teaches the reader to ignore the
+ * calendar, which is the one habit this feature exists to prevent.
+ */
+export interface DeadlineSituation {
+  /** Has the business begun trading? */
+  hasStarted: boolean;
+  /** Projected tax for the year. Nothing owed means no instalment is due. */
+  projectedTaxCents: number;
+  /** Any sales at all this year. */
+  hasSales: boolean;
+  /** Sales tax collected that the taxpayer must remit themselves. */
+  owesSalesTax: boolean;
+}
+
+/** Everything applies, for callers with no situation to offer. */
+const ASSUME_ACTIVE: DeadlineSituation = {
+  hasStarted: true,
+  projectedTaxCents: 1,
+  hasSales: true,
+  owesSalesTax: true,
+};
+
+/**
+ * Whether a deadline is a duty for this taxpayer, or merely a date.
+ *
+ * Returns null when it applies, or the reason it does not.
+ */
+function notApplicableBecause(id: string, s: DeadlineSituation): string | null {
+  if (id.startsWith('est-')) {
+    if (!s.hasStarted) {
+      return 'You have not started trading, so there is nothing to pay an instalment on.';
+    }
+    if (s.projectedTaxCents <= 0) {
+      return 'Your records show no tax owed so far this year, so no instalment is due on this date.';
+    }
+    return null;
+  }
+  if (id.startsWith('1099k-')) {
+    return s.hasSales ? null : 'You have no sales recorded, so no platform will be reporting anything.';
+  }
+  return null;
+}
+
+export function upcomingDeadlines(
+  year: number,
+  today: Date,
+  lookBackDays = 45,
+  situation: DeadlineSituation = ASSUME_ACTIVE,
+): UpcomingDeadline[] {
   const candidates = [...deadlinesForYear(year), ...deadlinesForYear(year - 1)];
 
   return candidates
     .map((deadline) => {
       const daysAway = daysUntil(deadline.dueOn, today);
-      const urgency: UpcomingDeadline['urgency'] =
-        daysAway < 0 ? 'overdue' : daysAway <= 14 ? 'imminent' : daysAway <= 45 ? 'soon' : 'later';
-      return { ...deadline, daysAway, urgency };
+      const notApplicable = notApplicableBecause(deadline.id, situation);
+      // A date that is not a duty is never urgent, however close it is.
+      const urgency: UpcomingDeadline['urgency'] = notApplicable
+        ? 'later'
+        : daysAway < 0 ? 'overdue' : daysAway <= 14 ? 'imminent' : daysAway <= 45 ? 'soon' : 'later';
+      return { ...deadline, daysAway, urgency, applies: notApplicable === null, notApplicable };
     })
     .filter((d) => d.daysAway >= -lookBackDays && d.daysAway <= 120)
     .sort((a, b) => a.daysAway - b.daysAway);

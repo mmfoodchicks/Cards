@@ -150,3 +150,59 @@ describe('the state fee bar for home businesses', () => {
     expect(wb.watchOut.join(' ')).toMatch(/do not assume/i);
   });
 });
+
+
+describe('a date is not a duty', () => {
+  const sep8 = new Date('2026-09-08T00:00:00Z');
+  const thinking = { hasStarted: false, projectedTaxCents: 0, hasSales: false, owesSalesTax: false };
+  const trading = { hasStarted: true, projectedTaxCents: 50000, hasSales: true, owesSalesTax: false };
+
+  it('does not tell someone who has not started that an instalment is due', () => {
+    // The worst possible first impression: you open the app having done
+    // nothing, and it says a tax payment is due in seven days with penalty
+    // language. That teaches people to ignore the calendar entirely.
+    const q3 = upcomingDeadlines(2026, sep8, 45, thinking).find((d) => d.id === 'est-2026-q3')!;
+    expect(q3.applies).toBe(false);
+    expect(q3.urgency).toBe('later');
+    expect(q3.notApplicable).toMatch(/have not started trading/i);
+  });
+
+  it('does tell someone who is trading and owes tax', () => {
+    const q3 = upcomingDeadlines(2026, sep8, 45, trading).find((d) => d.id === 'est-2026-q3')!;
+    expect(q3.applies).toBe(true);
+    expect(q3.urgency).toBe('imminent');
+    expect(q3.notApplicable).toBeNull();
+  });
+
+  it('stays quiet about an instalment when trading has begun but nothing is owed', () => {
+    const q3 = upcomingDeadlines(2026, sep8, 45, { ...trading, projectedTaxCents: 0 })
+      .find((d) => d.id === 'est-2026-q3')!;
+    expect(q3.applies).toBe(false);
+    expect(q3.notApplicable).toMatch(/no tax owed so far/i);
+  });
+
+  it('does not expect a 1099-K for someone with no sales', () => {
+    // Checked in January, when that date is actually in the window.
+    const jan = new Date('2027-01-10T00:00:00Z');
+    const form = upcomingDeadlines(2026, jan, 45, thinking).find((d) => d.id === '1099k-2026')!;
+    expect(form).toBeDefined();
+    expect(form.applies).toBe(false);
+    expect(form.notApplicable).toMatch(/no sales recorded/i);
+
+    const withSales = upcomingDeadlines(2026, jan, 45, trading).find((d) => d.id === '1099k-2026')!;
+    expect(withSales.applies).toBe(true);
+  });
+
+  it('still shows the annual return, which applies to everyone', () => {
+    const ret = upcomingDeadlines(2026, new Date('2027-04-01T00:00:00Z'), 45, thinking)
+      .find((d) => d.id === 'return-2026')!;
+    expect(ret).toBeDefined();
+    expect(ret.applies).toBe(true);
+  });
+
+  it('assumes everything applies when no situation is given', () => {
+    // Callers that cannot describe the taxpayer get the cautious answer.
+    const q3 = upcomingDeadlines(2026, sep8).find((d) => d.id === 'est-2026-q3')!;
+    expect(q3.applies).toBe(true);
+  });
+});
