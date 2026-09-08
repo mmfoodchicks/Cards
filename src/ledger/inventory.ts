@@ -74,6 +74,9 @@ export function openSealedItem(input: OpenSealedInput, db: Db = getDb()): OpenSe
           {
             lotId: parent.lotId,
             parentItemId: parent.id,
+            // Values for what came out of a pack are as of the day it was opened.
+            estimatedValueAsOf: item.estimatedValueCents == null ? null : input.openedOn,
+            estimatedValueSource: item.estimatedValueCents == null ? null : 'entered when the pack was opened',
             kind: item.kind ?? 'single',
             holdingIntent: item.holdingIntent ?? parent.holdingIntent,
             description: item.description,

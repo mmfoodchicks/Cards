@@ -231,4 +231,16 @@ export const MIGRATIONS: string[] = [
     notes        TEXT
   );
   `,
+
+  /* v2 — when a value was observed, and where it came from.
+   *
+   * An estimated value is only meaningful with a date attached. Treas. Reg.
+   * 1.61-6 allocates cost by fair market value AT THE TIME of the purchase, so
+   * a price pulled today is the wrong number for a box bought last March —
+   * structurally, not marginally. Without a date nothing could tell the
+   * difference. */
+  `
+  ALTER TABLE inventory_items ADD COLUMN estimated_value_as_of TEXT;
+  ALTER TABLE inventory_items ADD COLUMN estimated_value_source TEXT;
+  `,
 ];

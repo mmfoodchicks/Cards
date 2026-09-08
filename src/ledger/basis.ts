@@ -41,6 +41,11 @@ export interface AllocationInput {
   totalCents: Cents;
   items: AllocationItem[];
   method: BasisAllocationMethod;
+  /**
+   * The date the cost was incurred — the purchase date, or the day a pack was
+   * opened. Supply it and stale values get flagged.
+   */
+  asOf?: string | null;
 }
 
 export interface AllocationItem {
@@ -51,6 +56,12 @@ export interface AllocationItem {
    * relative-FMV. null means unknown.
    */
   estimatedValueCents: Cents | null;
+  /**
+   * When that value was observed. Cost is allocated by fair market value AT THE
+   * TIME of the purchase, so a price pulled today is the wrong input for a box
+   * bought last year — and without a date nothing can tell the difference.
+   */
+  estimatedValueAsOf?: string | null;
   /** Units, for supplies bought in bulk. Cards are 1. */
   quantity?: number;
   /** Explicit basis, used only under the `manual` method. */
@@ -137,6 +148,19 @@ export function allocateBasis(input: AllocationInput): Allocation {
             'That is the correct result if they really are worthless, but check it: ' +
             'an item with zero basis is entirely taxable profit when it sells.',
         );
+      }
+      // Treas. Reg. 1.61-6 allocates by relative value AT THE TIME of the
+      // purchase. A price looked up months later is not that number, and a
+      // live price feed makes this easy to get wrong without noticing.
+      if (input.asOf) {
+        const stale = valued.filter((i) => i.estimatedValueAsOf && i.estimatedValueAsOf > input.asOf!);
+        if (stale.length > 0) {
+          notes.push(
+            `${stale.length} value${stale.length === 1 ? ' was' : 's were'} observed AFTER ${input.asOf}, so ` +
+              'they are not fair market value at the time of this purchase. Reg. 1.61-6 asks for the value ' +
+              'then, not now — using a later price shifts cost between items and changes the gain on each.',
+          );
+        }
       }
       weights = items.map((i) => (i.estimatedValueCents ?? 0) * (i.quantity ?? 1));
       notes.push('Cost allocated in proportion to each item’s fair market value at the time of purchase.');

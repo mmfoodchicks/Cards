@@ -54,9 +54,11 @@ export function recordPurchase(input: RecordPurchaseInput, db: Db = getDb()): Re
   const allocation = allocateBasis({
     totalCents: total,
     method,
+    asOf: input.lot.purchasedOn,
     items: input.items.map((item, index) => ({
       ref: index,
       estimatedValueCents: item.estimatedValueCents ?? null,
+      estimatedValueAsOf: null,
       quantity: item.quantity ?? 1,
       manualBasisCents: item.manualBasisCents,
     })),
@@ -73,6 +75,10 @@ export function recordPurchase(input: RecordPurchaseInput, db: Db = getDb()): Re
           {
             lotId: lot.id,
             parentItemId: null,
+            // A value given at purchase IS fair market value at the time of
+            // purchase, which is exactly what Reg. 1.61-6 asks for.
+            estimatedValueAsOf: item.estimatedValueCents == null ? null : input.lot.purchasedOn,
+            estimatedValueSource: item.estimatedValueCents == null ? null : 'entered when the purchase was recorded',
             kind: item.kind,
             holdingIntent: item.holdingIntent ?? 'inventory',
             description: item.description,
@@ -131,7 +137,10 @@ export function reallocateLot(
   db: Db = getDb(),
 ): { allocation: Allocation; skipped: InventoryItem[] } {
   const lot = db.prepare('SELECT * FROM purchase_lots WHERE id = ?').get(lotId) as
-    | { subtotal_cents: number; shipping_cents: number; tax_cents: number; fees_cents: number }
+    | {
+        subtotal_cents: number; shipping_cents: number; tax_cents: number; fees_cents: number;
+        purchased_on: string;
+      }
     | undefined;
   if (!lot) throw new Error(`Purchase ${lotId} does not exist.`);
 
@@ -173,12 +182,18 @@ export function reallocateLot(
     );
   }
 
+  // Reallocation is where a live price feed does real damage. The cost being
+  // split was incurred on the purchase date, so values observed after it are
+  // the wrong input — and the whole point of a comps lookup is to produce
+  // values observed today.
   const allocation = allocateBasis({
     totalCents: total,
     method,
+    asOf: lot.purchased_on,
     items: open.map((item) => ({
       ref: item.id,
       estimatedValueCents: item.estimatedValueCents,
+      estimatedValueAsOf: item.estimatedValueAsOf,
       quantity: item.quantity,
       manualBasisCents: item.basisCents,
     })),

@@ -225,6 +225,23 @@ spread across the cards when you open it.
 
 The sting: a trade produces no cash, but the tax is due anyway.
 
+### Do you have to show inventory?
+
+You have to **track** what cards cost — always. Whether you fill in Schedule C
+Part III is a **choice**, because you are a small business taxpayer:
+
+> If you are a small business taxpayer, **you can choose not to keep an
+> inventory**… If, however, you choose to keep an inventory, you must generally
+> value the inventory each year to determine your cost of goods sold in Part III.
+
+Keep an inventory and cost comes back through lines 35–42. Choose non-incidental
+materials and supplies instead and it comes back when the item is *"first used or
+consumed"* — when you provide it to the customer. Both need the same input: what
+each card cost. Neither lets you deduct a card you still own.
+
+The app does both; it is a setting in **Setup**, defaulting to keeping an
+inventory.
+
 ### What a card is worth, which is not what it cost
 
 The **Stock** tab has a "What is it worth?" button on every item. It writes to an

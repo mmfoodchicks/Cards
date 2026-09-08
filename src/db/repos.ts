@@ -159,6 +159,7 @@ interface ItemRow {
   id: number; lot_id: number | null; parent_item_id: number | null; kind: string; holding_intent: string;
   description: string; category: string | null; set_name: string | null; year: number | null;
   quantity: number; acquired_on: string; basis_cents: number; estimated_value_cents: number | null;
+  estimated_value_as_of: string | null; estimated_value_source: string | null;
   status: string; graded_by: string | null; grade: string | null; cert_number: string | null;
   location: string | null; notes: string | null; created_at: string; updated_at: string;
 }
@@ -178,6 +179,8 @@ function toItem(row: ItemRow): InventoryItem {
     acquiredOn: row.acquired_on,
     basisCents: row.basis_cents,
     estimatedValueCents: row.estimated_value_cents,
+    estimatedValueAsOf: (row.estimated_value_as_of ?? null) as InventoryItem['estimatedValueAsOf'],
+    estimatedValueSource: row.estimated_value_source ?? null,
     status: row.status as InventoryItem['status'],
     gradedBy: row.graded_by,
     grade: row.grade,
@@ -196,11 +199,13 @@ export function createItem(input: ItemInput, db: Db = getDb()): InventoryItem {
   const res = db.prepare(`
     INSERT INTO inventory_items (
       lot_id, parent_item_id, kind, holding_intent, description, category, set_name, year,
-      quantity, acquired_on, basis_cents, estimated_value_cents, status,
+      quantity, acquired_on, basis_cents, estimated_value_cents,
+      estimated_value_as_of, estimated_value_source, status,
       graded_by, grade, cert_number, location, notes, created_at, updated_at
     ) VALUES (
       @lotId, @parentItemId, @kind, @holdingIntent, @description, @category, @setName, @year,
-      @quantity, @acquiredOn, @basisCents, @estimatedValueCents, @status,
+      @quantity, @acquiredOn, @basisCents, @estimatedValueCents,
+      @estimatedValueAsOf, @estimatedValueSource, @status,
       @gradedBy, @grade, @certNumber, @location, @notes, @createdAt, @updatedAt
     )
   `).run({ ...input, createdAt: stamp, updatedAt: stamp });
@@ -223,7 +228,9 @@ export function updateItem(id: number, patch: Partial<ItemInput>, reason: string
       lot_id = @lotId, parent_item_id = @parentItemId, kind = @kind, holding_intent = @holdingIntent,
       description = @description, category = @category, set_name = @setName, year = @year,
       quantity = @quantity, acquired_on = @acquiredOn, basis_cents = @basisCents,
-      estimated_value_cents = @estimatedValueCents, status = @status, graded_by = @gradedBy,
+      estimated_value_cents = @estimatedValueCents,
+      estimated_value_as_of = @estimatedValueAsOf, estimated_value_source = @estimatedValueSource,
+      status = @status, graded_by = @gradedBy,
       grade = @grade, cert_number = @certNumber, location = @location, notes = @notes,
       updated_at = @updatedAt
     WHERE id = @id

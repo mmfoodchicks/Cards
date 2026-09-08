@@ -210,4 +210,44 @@ describe('market value can never become cost', () => {
     expect(basisOf(after)).toEqual(basisOf(before));
     expect(basisOf(after)[0]).toBe(5000);
   });
+
+  it('flags a value observed after the purchase it is being used to allocate', () => {
+    // The hazard a live price feed creates: Reg. 1.61-6 allocates by fair
+    // market value AT THE TIME of the purchase, and a comps lookup produces
+    // today's price. Using it to re-split last March's box shifts cost between
+    // cards and changes the gain on each.
+    const result = allocateBasis({
+      totalCents: 16164,
+      method: 'relative-fmv',
+      asOf: '2026-03-01',
+      items: [
+        { ref: 'chase', estimatedValueCents: 260000, estimatedValueAsOf: '2026-09-08' },
+        { ref: 'common', estimatedValueCents: 100, estimatedValueAsOf: '2026-03-01' },
+      ],
+    });
+    expect(result.notes.join(' ')).toMatch(/observed AFTER 2026-03-01/i);
+    expect(result.notes.join(' ')).toMatch(/1\.61-6/);
+  });
+
+  it('says nothing when every value predates the purchase', () => {
+    const result = allocateBasis({
+      totalCents: 16164,
+      method: 'relative-fmv',
+      asOf: '2026-09-08',
+      items: [
+        { ref: 'chase', estimatedValueCents: 260000, estimatedValueAsOf: '2026-09-08' },
+        { ref: 'common', estimatedValueCents: 100, estimatedValueAsOf: '2026-03-01' },
+      ],
+    });
+    expect(result.notes.join(' ')).not.toMatch(/observed AFTER/i);
+  });
+
+  it('stays quiet when no date is supplied, rather than guessing', () => {
+    const result = allocateBasis({
+      totalCents: 16164,
+      method: 'relative-fmv',
+      items: [{ ref: 'a', estimatedValueCents: 100 }, { ref: 'b', estimatedValueCents: 200 }],
+    });
+    expect(result.notes.join(' ')).not.toMatch(/observed AFTER/i);
+  });
 });

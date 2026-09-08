@@ -181,6 +181,14 @@ export interface InventoryItem {
   basisCents: Cents;
   /** Fair market value, used to allocate lot cost and to value inventory. */
   estimatedValueCents: Cents | null;
+  /**
+   * When that value was observed. Without it a value cannot be judged: cost is
+   * allocated by fair market value AT THE TIME of purchase, so a price pulled
+   * today is the wrong input for a box bought last year.
+   */
+  estimatedValueAsOf: IsoDate | null;
+  /** Where the value came from, so it can be weighed rather than trusted. */
+  estimatedValueSource: string | null;
   status: ItemStatus;
   gradedBy: string | null;
   grade: string | null;

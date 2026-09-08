@@ -696,6 +696,8 @@ const applyValueSchema = z.object({
   dollars: z.string().min(1).max(30).optional(),
   /** Where the number came from, kept so it can be judged later. */
   provenance: z.string().min(1).max(500),
+  /** When it was observed. Defaults to today. */
+  observedOn: isoDate.optional(),
 }).refine((v) => v.estimatedValueCents !== undefined || v.dollars !== undefined, {
   message: 'Provide either estimatedValueCents or dollars.',
 });
@@ -724,9 +726,15 @@ api.post('/items/:id/value', handle((req, res) => {
   }
   if (cents < 0) return fail(res, 400, 'A value cannot be negative.');
 
+  // Stamp WHEN it was observed. A value with no date cannot be judged later,
+  // and it is the date that decides whether it may be used to allocate a cost.
   const updated = updateItem(
     item.id,
-    { estimatedValueCents: cents } as never,
+    {
+      estimatedValueCents: cents,
+      estimatedValueAsOf: parsed.data.observedOn ?? new Date().toISOString().slice(0, 10),
+      estimatedValueSource: parsed.data.provenance,
+    } as never,
     `Value recorded: ${parsed.data.provenance}`,
   );
 

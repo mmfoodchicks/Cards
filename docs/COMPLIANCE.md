@@ -320,20 +320,54 @@ that is the number that would be questioned.
 
 ---
 
-## Inventory is carried at cost, not at what it is worth
+## Do you have to "show inventory"?
+
+Two questions get mashed together here, and they have different answers.
+
+### Do you have to TRACK what cards cost you? Yes, always.
+
+Reg. 1.6001-1(a) requires records sufficient to establish income and deductions,
+and no election gets you out of it. Without per-card cost you cannot compute a
+gain on anything you sell.
+
+### Do you have to fill in Schedule C Part III? That is a CHOICE.
+
+The Schedule C instructions say it plainly:
+
+> **Exception for small business taxpayers.** If you are a small business
+> taxpayer, **you can choose not to keep an inventory**, but you must still use a
+> method of accounting for inventory that clearly reflects income. If you choose
+> not to keep an inventory, you won't be treated as failing to clearly reflect
+> income if your method of accounting for inventory treats inventory as
+> nonincidental material or supplies or conforms to your financial accounting
+> treatment of inventories. **If, however, you choose to keep an inventory, you
+> must generally value the inventory each year to determine your cost of goods
+> sold in Part III of Schedule C.**
+
+You qualify as a small business taxpayer — the test is average annual gross
+receipts of $31 million or less over the prior three years. So you have two
+roads:
+
+| Method | Where cost is deducted | Part III |
+|---|---|---|
+| **Keep an inventory** (§471(a)) | Cost of goods sold, lines 35–42 | Yes, valued each year |
+| **Non-incidental materials and supplies** (§471(c)) | When the item is *"first used or consumed"* — which the regulation defines as when you provide it to the customer | Plausibly blank; line 22 is captioned *"Supplies (not included in Part III)"* |
+
+**Both roads need the same input: what each card cost you.** And on neither road
+can you deduct a card's cost while you still own it. That is the actual rule
+under the question.
+
+The app supports both — it is a setting in **Setup** — and defaults to keeping
+an inventory, which is the more conventional and better-documented road.
+
+### Whichever road: inventory is carried at COST
 
 Schedule C line 33 asks: *"Method(s) used to value closing inventory: (a) Cost,
-(b) Lower of cost or market, (c) Other."* For this app the answer is **(a)
-Cost**, and that answer is the whole of the matter.
+(b) Lower of cost or market, (c) Other."* This app answers **(a) Cost**.
 
-A card you believe is worth $750 and paid $50 for sits in your books at **$50**.
-The $750 becomes a tax number on the day it sells and not one day before. Sell it
-for $750 and you have $700 of profit; never sell it and it changes nothing you
-owe.
-
-This trips people up because it feels backwards — a valuable card ought to be a
-valuable asset. It is. It just is not a *deduction*, and inventory on a tax
-return is a cost figure, not a net-worth figure.
+A card you believe is worth $750 and paid $306.39 for sits in your books at
+**$306.39**. The $750 becomes a tax number the day it is disposed of — sold *or
+traded* — and not one day before.
 
 **Why ending inventory still has to be right.** Part III computes:
 
@@ -342,17 +376,15 @@ beginning inventory + purchases − ending inventory = cost of goods sold
 ```
 
 Ending inventory is what stops you deducting the cost of cards you still own.
-Get it wrong and you have either overstated this year's deduction or lost it
-permanently.
 
 **Where a market value IS legitimate:**
 
-- Splitting the cost of a box or a lot across its contents by relative fair
-  market value (Treas. Reg. 1.61-6) — only the *ratios* matter there, never the
-  absolute figures
-- Deciding what to sell and when
+- Splitting the cost of a box or lot across its contents by relative fair market
+  value (Treas. Reg. 1.61-6) — and note this means value **at the time of the
+  purchase**, not today's price, which is why the app date-stamps every value
+  and warns when a later one is used to allocate an earlier cost
+- Deciding what to sell, and when
 - Insurance, and the personal collection schedule
-- Working out whether a card is better sold as a collection piece or as inventory
 
 **Where it is not:** anywhere on Schedule C.
 
