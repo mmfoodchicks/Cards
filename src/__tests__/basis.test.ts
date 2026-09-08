@@ -225,7 +225,7 @@ describe('market value can never become cost', () => {
         { ref: 'common', estimatedValueCents: 100, estimatedValueAsOf: '2026-03-01' },
       ],
     });
-    expect(result.notes.join(' ')).toMatch(/observed AFTER 2026-03-01/i);
+    expect(result.notes.join(" ")).toMatch(/observed AFTER 2026-03-01/i);
     expect(result.notes.join(' ')).toMatch(/1\.61-6/);
   });
 

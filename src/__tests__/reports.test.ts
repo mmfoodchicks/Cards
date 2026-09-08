@@ -444,3 +444,22 @@ describe('personal dispositions stay off Schedule C', () => {
     expect(profitAndLoss(2026, {}, db).grossReceiptsCents).toBe(5000);
   });
 });
+
+describe('accounting method honesty', () => {
+  it('warns that the materials-and-supplies figure keys off the sale date', () => {
+    // Reg. 1.471-1(b)(4)(i) recovers cost when the item is PROVIDED TO THE
+    // CUSTOMER. The app records only the sale date, which is the same year for
+    // almost every sale but not for one sold in December and posted in January.
+    const db = openMemoryDb();
+    updateProfile({ inventoryMethod: 'materials-and-supplies' }, db);
+    const pl = profitAndLoss(2026, {}, db);
+    expect(pl.warnings.join(' ')).toMatch(/PROVIDED TO THE CUSTOMER/);
+    expect(pl.warnings.join(' ')).toMatch(/posted in January|after the 31st/i);
+  });
+
+  it('does not raise it for the ordinary inventory method', () => {
+    const db = openMemoryDb();
+    const pl = profitAndLoss(2026, {}, db);
+    expect(pl.warnings.join(' ')).not.toMatch(/PROVIDED TO THE CUSTOMER/);
+  });
+});

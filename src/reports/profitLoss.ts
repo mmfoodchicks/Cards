@@ -145,10 +145,14 @@ export function profitAndLoss(
 
   // --- Cost of goods sold -------------------------------------------------
   const cogs = cogsForYear(year, db);
-  const cogsCents =
-    profile.inventoryMethod === 'materials-and-supplies'
-      ? cogsMaterialsMethod(year, db).cogsCents
-      : cogs.cogsCents;
+  let cogsCents: Cents;
+  if (profile.inventoryMethod === 'materials-and-supplies') {
+    const materials = cogsMaterialsMethod(year, db);
+    cogsCents = materials.cogsCents;
+    warnings.push(materials.caveat);
+  } else {
+    cogsCents = cogs.cogsCents;
+  }
 
   if (cogs.warning) warnings.push(cogs.warning);
 

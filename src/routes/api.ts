@@ -140,7 +140,29 @@ api.get('/profile', (_req, res) => res.json(getProfile()));
 api.put('/profile', handle((req, res) => {
   const parsed = profileSchema.safeParse(req.body);
   if (!parsed.success) return fail(res, 400, 'Invalid profile', parsed.error.flatten());
-  res.json(updateProfile(parsed.data));
+
+  // How you account for inventory is not a display preference. It is an
+  // accounting method, and once adopted, changing it is a change of accounting
+  // method — generally Form 3115, with a section 481(a) adjustment. It sits in
+  // Settings next to the business name, so it is the one field here that can be
+  // altered casually with consequences that cannot be.
+  const before = getProfile();
+  const updated = updateProfile(parsed.data);
+  const methodChanged = before.inventoryMethod !== updated.inventoryMethod;
+
+  res.json({
+    ...updated,
+    ...(methodChanged
+      ? {
+          methodChangeWarning:
+            `You changed how inventory is accounted for, from "${before.inventoryMethod}" to ` +
+            `"${updated.inventoryMethod}". If you have already filed a return on the old method, that is a ` +
+            'change of accounting method — generally Form 3115 and a section 481(a) adjustment, not something ' +
+            'you can just switch. In your FIRST year, before any return is filed, you are simply adopting a ' +
+            'method and this is free. The change is recorded in the audit log either way.',
+        }
+      : {}),
+  });
 }));
 
 // ---------------------------------------------------------------------------

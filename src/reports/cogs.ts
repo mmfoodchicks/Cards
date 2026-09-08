@@ -148,12 +148,27 @@ function explainDifference(differenceCents: Cents): string {
  * asset, so a big December buy is not deductible until it sells either way —
  * but the paperwork is far lighter.
  */
-export function cogsMaterialsMethod(year: number, db: Db = getDb()): { cogsCents: Cents; note: string } {
+export function cogsMaterialsMethod(
+  year: number,
+  db: Db = getDb(),
+): { cogsCents: Cents; note: string; caveat: string } {
   const report = cogsForYear(year, db);
   return {
     cogsCents: report.cogsFromSalesCents,
     note:
       'Computed as the cost of items actually sold during the year, which is how inventory is deducted ' +
       'when treated as non-incidental materials and supplies. Unsold inventory is not deducted until it sells.',
+    // Being precise about an approximation rather than quiet about it.
+    //
+    // Reg. 1.471-1(b)(4)(i) recovers the cost in the year the taxpayer
+    // "provides the inventory to its customer". This uses the SALE date,
+    // because that is the only date the app records. For a card posted the same
+    // week they are the same year and the figure is exact. They diverge only
+    // when a sale and its shipment straddle 31 December — sell on the 30th,
+    // post on the 2nd, and the deduction belongs to the following year.
+    caveat:
+      'This uses the date of sale. The regulation recovers the cost when the item is PROVIDED TO THE ' +
+      'CUSTOMER, which is the same year for almost every sale — but not for one sold in late December and ' +
+      'posted in January. Check any sale near the year end and move it if the parcel went out after the 31st.',
   };
 }

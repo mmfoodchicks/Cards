@@ -156,9 +156,10 @@ export function allocateBasis(input: AllocationInput): Allocation {
         const stale = valued.filter((i) => i.estimatedValueAsOf && i.estimatedValueAsOf > input.asOf!);
         if (stale.length > 0) {
           notes.push(
-            `${stale.length} value${stale.length === 1 ? ' was' : 's were'} observed AFTER ${input.asOf}, so ` +
-              'they are not fair market value at the time of this purchase. Reg. 1.61-6 asks for the value ' +
-              'then, not now — using a later price shifts cost between items and changes the gain on each.',
+            `${stale.length} value${stale.length === 1 ? '' : 's'} observed AFTER ${input.asOf}, so ` +
+              `${stale.length === 1 ? 'it is' : 'they are'} not fair market value at the time of this ` +
+              'purchase. Reg. 1.61-6 asks for the value then, not now — using a later price shifts cost ' +
+              'between items and changes the gain on each.',
           );
         }
       }
